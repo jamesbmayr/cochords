@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title><script node>getAsset("title")</script>node></title>
+		<script node>getAsset("logo")</script>node>
+		<script node>getAsset("meta")</script>node>
+		<script node>getAsset("fonts")</script>node>
+		<script node>getAsset("css-variables")</script>node>
+		<link rel="stylesheet" href="main.css"/>
+		<link rel="stylesheet" href="home.css"/>
+		<script src="home.js" defer></script>
+	</head>
+	<body>
+		<div id="background"></div>
+		<a id="j-logo" href="https://jamesmayr.com" target="_blank"></a>
+		<div id="container">
+			<h1 id="heading"><div id="logo"></div><script node>getAsset("title")</script>node></h1>
+			<input type="text" placeholder="your name" id="name-input" autocomplete="off" spellcheck="false" title="composer name"/>
+			<form id="new-music-form" method="post" action="javascript:;">
+				<button id="new-music-button" title="create new music">new music</button>
+			</form>
+			<form id="join-music-form" method="post" action="javascript:;">
+				<input type="text" placeholder="music id" id="music-id-input" autocomplete="off" spellcheck="false" title="music id input"/>
+				<div id="music-id-list"></div>
+				<button id="join-music-button" title="load existing music">load</button>
+			</form>
+		</div>		
+	</body>
+</html>

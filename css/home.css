@@ -1,0 +1,128 @@
+/*** background ***/
+	body {
+		background-color: var(--dark-gray);
+	}
+
+	#background {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translateX(-50%) translateY(-50%);
+		height: 100vw;
+		width: 100vw;
+		max-height: 100vh;
+		max-width: 100vh;
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+		pointer-events: none;
+		filter: blur(var(--blur-size));
+	}
+
+/*** container ***/
+	#container {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translateX(-50%) translateY(-50%);
+		padding: var(--medium-gap-size);
+		border-radius: calc(var(--border-radius) * 1.5);
+		background: rgba(17, 17, 17, 0.5);
+		text-align: center;
+		width: calc(((var(--medium-font-size) * 10 + 2 * var(--medium-gap-size)) * 2 + 3 * var(--medium-gap-size)) * var(--multiplier));
+		box-shadow: 0 0 var(--shadow-size) var(--medium-gray);
+	}
+
+	/* heading */
+		#heading {
+			text-transform: uppercase;
+			color: var(--light-gray);
+			line-height: 1;
+			margin-bottom: calc(var(--medium-gap-size) + var(--small-gap-size));
+		}
+
+		#logo {
+			height: var(--large-font-size);
+			width: var(--large-font-size);
+			margin-right: var(--medium-gap-size);
+			background-color: transparent;
+			background-image: url(logo.png);
+			background-size: contain;
+			background-position: center;
+			background-repeat: no-repeat;
+			display: inline-block;
+			vertical-align: bottom;
+			cursor: pointer;
+		}
+
+		@media screen and (max-width: 800px) {
+			#logo {
+				height: calc(2 * var(--large-font-size));
+				width: calc(2 * var(--large-font-size));
+				margin: auto;
+				margin-bottom: var(--medium-gap-size);
+				display: block;
+			}
+		}
+
+	/* form */
+		#name-input {
+			text-align: center;
+			width: 100%;
+			margin-bottom: var(--medium-gap-size);
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+		}
+
+		#new-music-form, #join-music-form {
+			float: left;
+			width: calc(50% - var(--medium-gap-size) / 2);
+		}
+
+		#new-music-form {
+			margin-right: var(--medium-gap-size);
+		}
+
+		#new-music-button {
+			width: 100%;
+			height: calc(var(--medium-font-size) * 2 + 4 * var(--medium-gap-size));
+			background: var(--medium-blue);
+		}
+
+		#music-id-input {
+			text-align: center;
+			width: 100%;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			margin-bottom: 0;
+			text-transform: uppercase;
+			border-radius: var(--border-radius) var(--border-radius) 0 0;
+		}
+
+		#join-music-button {
+			width: 100%;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			background: var(--medium-blue);
+			border-radius: 0 0 var(--border-radius) var(--border-radius);
+		}
+
+/*** j-logo ***/
+	#j-logo {
+		position: absolute;
+		top: 14px;
+		right: 8px;
+		background-color: transparent;
+		background-image: url("https://jamesmayr.com/resources/j.png");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		height: 32px;
+		width: 32px;
+		cursor: pointer;
+		z-index: 999;
+		outline: none;
+		filter: drop-shadow(0px 0px var(--shadow-size) var(--medium-gray));
+	}
+
+	#j-logo:hover, #j-logo:focus {
+		box-shadow: none;
+		filter: drop-shadow(0px 0px var(--shadow-size) var(--dark-gray));
+	}
