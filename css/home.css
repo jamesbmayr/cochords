@@ -19,89 +19,181 @@
 		filter: blur(var(--blur-size));
 	}
 
-/*** container ***/
 	#container {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translateX(-50%) translateY(-50%);
+		display: block;
+		margin: calc(var(--large-gap-size)) auto;
 		padding: var(--medium-gap-size);
-		border-radius: calc(var(--border-radius) * 1.5);
-		background: rgba(17, 17, 17, 0.5);
 		text-align: center;
-		width: calc(((var(--medium-font-size) * 10 + 2 * var(--medium-gap-size)) * 2 + 3 * var(--medium-gap-size)) * var(--multiplier));
-		box-shadow: 0 0 var(--shadow-size) var(--medium-gray);
+		width: calc(40 * var(--medium-font-size) + 2 * var(--medium-gap-size));
+		height: calc(100% - 2 * var(--large-gap-size));
+		overflow: hidden;
+		max-width: calc(100vw - var(--medium-gap-size) * 2);
+		box-sizing: border-box;
 	}
 
-	/* heading */
-		#heading {
-			text-transform: uppercase;
-			color: var(--light-gray);
-			line-height: 1;
-			margin-bottom: calc(var(--medium-gap-size) + var(--small-gap-size));
+/*** heading ***/
+	#heading-outer {
+		width: 100%;
+		height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size) + var(--large-font-size) + var(--large-gap-size));
+		box-sizing: border-box;
+	}
+
+	#heading-outer > span {
+		font-size: var(--medium-font-size);
+		font-family: var(--font-0);
+		color: var(--light-gray);
+		display: inline-block;
+		padding: var(--small-gap-size) var(--medium-gap-size);
+		vertical-align: text-bottom;
+		user-select: none;
+	}
+
+	#name-input {
+		display: inline-block;
+		text-align: center;
+		width: calc(var(--medium-font-size) * 10 + 2 * var(--medium-gap-size));
+		max-width: 100%;
+		font-size: var(--medium-font-size);
+		padding: var(--medium-gap-size);
+		height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+		box-sizing: border-box;
+		border: none;
+	}
+
+	#heading {
+		width: 100%;
+		display: block;
+		color: var(--light-gray);
+		line-height: 1;
+		margin: var(--medium-gap-size) 0 calc(var(--large-gap-size)) 0;
+		font-size: var(--large-font-size);
+	}
+
+	#logo {
+		height: var(--large-font-size);
+		width: var(--large-font-size);
+		background-color: transparent;
+		background-image: url(logo.png);
+		background-size: contain;
+		background-position: center;
+		background-repeat: no-repeat;
+		display: inline-block;
+		vertical-align: bottom;
+	}
+
+	@media screen and (max-width: 500px) {
+		#heading-outer span {
+			display: none;
 		}
 
 		#logo {
-			height: var(--large-font-size);
-			width: var(--large-font-size);
-			margin-right: var(--medium-gap-size);
-			background-color: transparent;
-			background-image: url(logo.png);
-			background-size: contain;
-			background-position: center;
-			background-repeat: no-repeat;
-			display: inline-block;
-			vertical-align: bottom;
-			cursor: pointer;
+			display: none;
 		}
+	}
 
-		@media screen and (max-width: 800px) {
-			#logo {
-				height: calc(2 * var(--large-font-size));
-				width: calc(2 * var(--large-font-size));
-				margin: auto;
-				margin-bottom: var(--medium-gap-size);
-				display: block;
-			}
-		}
+/*** actions ***/
+	#actions-outer {
+		width: 100%;
+		height: calc(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size)) + var(--large-gap-size));
+		padding-bottom: var(--large-gap-size);
+		box-sizing: border-box;
+	}
 
-	/* form */
-		#name-input {
-			text-align: center;
-			width: 100%;
-			margin-bottom: var(--medium-gap-size);
-			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
-		}
-
-		#new-music-form, #join-music-form {
+	/* create */
+		#create-music-form {
 			float: left;
-			width: calc(50% - var(--medium-gap-size) / 2);
+			width: 50%;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
+			padding: var(--large-gap-size) var(--medium-gap-size) 0 0;
+			box-sizing: border-box;
 		}
 
-		#new-music-form {
-			margin-right: var(--medium-gap-size);
-		}
-
-		#new-music-button {
+		#create-music-button {
 			width: 100%;
-			height: calc(var(--medium-font-size) * 2 + 4 * var(--medium-gap-size));
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 			background: var(--medium-blue);
 		}
 
-		#music-id-input {
+	/* upload */
+		#upload-music-form {
+			float: left;
+			width: 50%;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
+			padding: var(--large-gap-size) 0 0 var(--medium-gap-size);
+			box-sizing: border-box;
+		}
+
+		#upload-music-label {
 			text-align: center;
+			width: calc(100% - var(--small-gap-size));
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			background: var(--medium-blue);
+			margin: 0;
+		}
+
+		#upload-music-input {
+			min-width: 0 !important;
+			height: 0 !important;
+			width: 0 !important;
+			font-size: 0 !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			opacity: 0 !important;
+		}
+
+	/* join */
+		#join-music-form {
+			float: left;
 			width: 100%;
+			padding: var(--large-gap-size) 0 0 0;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
+			box-sizing: border-box;
+		}
+
+		#join-music-input {
+			text-align: center;
+			width: 50%;
 			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 			margin-bottom: 0;
 			text-transform: uppercase;
-			border-radius: var(--border-radius) var(--border-radius) 0 0;
+			border-radius: var(--border-radius) 0 0 var(--border-radius);
 		}
 
 		#join-music-button {
-			width: 100%;
+			width: 50%;
 			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 			background: var(--medium-blue);
-			border-radius: 0 0 var(--border-radius) var(--border-radius);
+			border-radius: 0 var(--border-radius) var(--border-radius) 0;
+		}
+
+		#join-music-form:focus-within #join-music-input, #join-music-form:focus-within #join-music-button {
+			box-shadow: 0 0 0 var(--border-size) var(--light-blue);
+		}
+
+	/* previous */
+		#previous-music-section {
+			margin-top: var(--large-gap-size);
+			float: left;
+			width: 100%;
+			height: calc(100vh - (2 * var(--large-gap-size) + 2 * var(--medium-gap-size)) - (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-font-size) + var(--medium-gap-size) + var(--large-gap-size)) - ((2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size)) + var(--large-gap-size))) - var(--large-gap-size) - 2 * var(--border-size));
+			box-shadow: 0 0 var(--shadow-size) var(--dark-gray) inset;
+			overflow-x: hidden;
+			overflow-y: scroll;
+		}
+
+		#previous-music-none {
+			width: 100%;
+			text-align: center;
+			text-transform: uppercase;
+			color: var(--medium-gray);
+			font-size: var(--medium-font-size);
+			user-select: none;
+		}
+
+		.previous-music-button {
+			width: calc(100% - 2 * var(--small-gap-size));
+			margin: var(--small-gap-size);
+			background: var(--medium-gray);
 		}
 
 /*** j-logo ***/

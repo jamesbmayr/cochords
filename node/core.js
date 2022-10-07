@@ -209,19 +209,19 @@
 						case "query":
 							return {
 								collection: null,
-								command: null,
-								filters: null,
-								document: null,
-								options: {}
+								command:    null,
+								filters:    null,
+								document:   null,
+								options:    {}
 							}
 						break
 
 						case "session":
 							return {
-								id: generateRandom(),
-								updated: new Date().getTime(),
-								composerId: null,
-								musicId: null,
+								id:               generateRandom(),
+								updated:          new Date().getTime(),
+								composerId:       null,
+								musicId:          null,
 								info: {
 									"ip":         null,
 									"user-agent": null,
@@ -233,47 +233,48 @@
 					// large structures
 						case "composer":
 							return {
-								id: generateRandom(),
+								id:        generateRandom(),
 								sessionId: null,
 								connected: false,
-								name: null,
-								isCreator: false
+								name:      "anonymous"
 							}
 						break
 
 						case "music":
 							return {
-								id: generateRandom(null, getAsset("constants").musicIdLength).toLowerCase(),
-								created: new Date().getTime(),
-								updated: new Date().getTime(),
-								composerIds: [],
-								title: "",
-								composer: "",
-								swing: false,
-								tempoChanges: [],
-								parts: {},
-								synths: {}
+								id:           generateRandom(null, getAsset("constants").musicIdLength).toLowerCase(),
+								created:      new Date().getTime(),
+								updated:      new Date().getTime(),
+								composers:    {},
+								title:        "",
+								composer:     "",
+								totalTicks:   0,
+								measureTicks: {},
+								swing:        false,
+								tempoChanges: {},
+								parts:        {},
+								synths:       {}
 							}
 						break
 
 					// small structures
 						case "part":
 							return {
-								id: generateRandom(),
-								name: "",
-								instrument: "",
+								id:          generateRandom(),
+								name:        "",
+								instrument:  "",
 								midiChannel: 0,
 								midiProgram: 0,
-								synth: "",
+								synth:       "",
 								staves: {
-									"1": {}
+									"1":     {}
 								}
 							}
 						break
 
 						case "synth":
 							return {
-								id: generateRandom(),
+								id:           generateRandom(),
 								name:         "",
 								polysynth:    {},
 								noise:        {},
@@ -286,9 +287,9 @@
 									sustain:  1,
 									release:  0,
 								},
-								bitcrusher:   {
-									bits: 0,
-									norm: 0
+								bitcrusher: {
+									bits:     0,
+									norm:     0
 								},
 								filters:      {},
 								echo: {
@@ -300,10 +301,10 @@
 
 						case "measure":
 							return {
-								ticks: 0,
-								tempo: null,
+								ticks:    0,
+								tempo:    null,
 								dynamics: null,
-								notes: {}
+								notes:    {}
 							}
 						break
 
@@ -424,7 +425,7 @@
 						break
 
 					// musicXML
-						case "noteToMidi": 
+						case "noteNameToMidi": 
 							return {
 								"C-1":  0,
 								"C♯-1": 1,
@@ -617,7 +618,7 @@
 							}
 						break
 
-						case "MidiToColor": 
+						case "midiToColor": 
 							return {
 								"36": "rgb(185,  60,  60)",
 								"37": "rgb(154,  91,  60)",
@@ -1069,7 +1070,18 @@
 								let document = ENVIRONMENT.db_cache[query.collection][documentKeys[d]]
 
 								for (let u in updateKeys) {
-									document[updateKeys[u]] = query.document[updateKeys[u]]
+									let subdocument = document
+									let updateKeyLevels = updateKeys[u].split(".")
+									let k = 0
+									while (k < updateKeyLevels.length - 1) {
+										if (typeof subdocument[updateKeyLevels[k]] == "undefined") {
+											subdocument[updateKeyLevels[k]] = {}
+										}
+										subdocument = subdocument[updateKeyLevels[k]]
+										k++
+									}
+									
+									subdocument[updateKeyLevels[k]] = query.document[updateKeys[u]]
 								}
 							}
 

@@ -209,38 +209,24 @@
 										catch (error) {_403(REQUEST, RESPONSE, error)}
 									break
 
-								// joinMusic
-									case "joinMusic":
-										try {
-											RESPONSE.writeHead(200, CORE.constructHeaders(REQUEST))
-											MUSIC.joinOne(REQUEST, function (data) {
-												RESPONSE.end(JSON.stringify(data))
-											})
-										}
-										catch (error) {_403(REQUEST, RESPONSE, error)}
-									break
-
-							// music
 								// upload
 									case "uploadMusic":
 										try {
 											RESPONSE.writeHead(200, CORE.constructHeaders(REQUEST))
 											REQUEST.post.action = "uploadMusic"
 											MUSIC.uploadOne(REQUEST, function (data) {
-												sendSocketData(data)
-												RESPONSE.end(JSON.stringify({success: true, message: "music uploaded"}))
+												RESPONSE.end(JSON.stringify(data))
 											})
 										}
 										catch (error) {_403(REQUEST, RESPONSE, error)}
 									break
 
-									case "uploadSynth":
+								// joinMusic
+									case "joinMusic":
 										try {
 											RESPONSE.writeHead(200, CORE.constructHeaders(REQUEST))
-											REQUEST.post.action = "uploadSynth"
-											MUSIC.uploadOne(REQUEST, function (data) {
-												sendSocketData(data)
-												RESPONSE.end(JSON.stringify({success: true, message: "synth uploaded"}))
+											MUSIC.joinOne(REQUEST, function (data) {
+												RESPONSE.end(JSON.stringify(data))
 											})
 										}
 										catch (error) {_403(REQUEST, RESPONSE, error)}
@@ -387,9 +373,9 @@
 				switch (REQUEST.post.action) {
 					// composition
 						case "leaveMusic":
-						case "removeComposer":
 						case "updateMusic":
 						case "updateTrack":
+						case "uploadSynth":
 							try {
 								MUSIC.updateOne(REQUEST, sendSocketData)
 							}
