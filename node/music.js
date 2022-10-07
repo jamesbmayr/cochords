@@ -1,7 +1,9 @@
 /*** modules ***/
 	const CORE = require("../node/core")
 	const SESSION = require("../node/session")
-	module.exports = {}
+	module.exports = {
+		actions: {}
+	}
 
 /*** constants ***/
 	const CONSTANTS = CORE.getAsset("constants")
@@ -80,8 +82,8 @@
 						music.composers[composer.id] = composer
 
 				// from musicXML / musicJSON
-					music.title        = REQUEST.post.musicJSON.title || ""
-					music.composer     = REQUEST.post.musicJSON.composer || ""
+					music.title        = (REQUEST.post.musicJSON.title || "untitled").slice(0, CONSTANTS.maximumMusicTitleLength)
+					music.composer     = (REQUEST.post.musicJSON.composer || "").slice(0, CONSTANTS.maximumMusicComposerLength)
 					music.totalTicks   = REQUEST.post.musicJSON.totalTicks || 0
 					music.measureTicks = REQUEST.post.musicJSON.measureTicks || {}
 					music.swing        = REQUEST.post.musicJSON.swing || false
@@ -277,7 +279,7 @@
 					}
 
 				// action
-					if (!REQUEST.post || !REQUEST.post.action || !["disconnectComposer"].includes(REQUEST.post.action)) {
+					if (!REQUEST.post || !REQUEST.post.action || !Object.keys(module.exports.actions).includes(REQUEST.post.action)) {
 						callback({musicId: musicId, success: false, message: "invalid action", recipients: [REQUEST.session.id]})
 						return
 					}
@@ -310,12 +312,7 @@
 							}
 
 						// action
-							switch (REQUEST.post.action) {
-								case "disconnectComposer":
-									disconnectComposer(REQUEST, music, composer, callback)
-									return
-								break
-							}
+							module.exports.actions[REQUEST.post.action](REQUEST, music, composer, callback)
 					})
 			}
 			catch (error) {
@@ -380,7 +377,7 @@
 
 /*** actions ***/
 	/* disconnectComposer */
-		module.exports.disconnectComposer = disconnectComposer
+		module.exports.actions.disconnectComposer = disconnectComposer
 		function disconnectComposer(REQUEST, music, composer, callback) {
 			try {
 				// update this composer
@@ -408,10 +405,280 @@
 
 						// updated music
 							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.composers = {}
+								updatedData.composers[composer.id] = composer
 
 						// inform other composers
 							for (let i in music.composers) {
-								callback({musicId: music.id, success: true, message: name + " disconnected", music: music, recipients: [music.composers[i].sessionId]})
+								callback({musicId: music.id, success: true, message: name + " disconnected", music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* uploadSynth */
+		module.exports.actions.uploadSynth = uploadSynth
+		function uploadSynth(REQUEST, music, composer, callback) {
+			try {
+				// no synth
+					if (!REQUEST.post.synth || typeof REQUEST.post.synth !== "object") {
+						callback({musicId: musicId, success: false, message: "missing synth JSON", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// new synth
+					const synth = CORE.getSchema("synth")
+						synth.id = REQUEST.post.synth.id || synth.id
+						synth.name = REQUEST.post.synth.name || synth.name
+						synth.polysynth = REQUEST.post.synth.polysynth || synth.polysynth
+						synth.noise = REQUEST.post.synth.noise || synth.noise
+						synth.imag = REQUEST.post.synth.imag || synth.imag
+						synth.real = REQUEST.post.synth.real || synth.real
+						synth.envelope = REQUEST.post.synth.envelope || synth.envelope
+						synth.bitcrusher = REQUEST.post.synth.bitcrusher || synth.bitcrusher
+						synth.filters = REQUEST.post.synth.filters || synth.filters
+						synth.echo = REQUEST.post.synth.echo || synth.echo
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["synths." + synth.id] = synth
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.synths = {}
+								updatedData.synths[synth.id] = synth
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateName */
+		module.exports.actions.updateName = updateName
+		function updateName(REQUEST, music, composer, callback) {
+			try {
+				// get name
+					const name = String(REQUEST.post.name).trim()
+
+				// no name
+					if (!name || !name.length) {
+						callback({musicId: musicId, success: false, message: "missing name", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// invalid length
+					if (CONSTANTS.minimumComposerNameLength > name.length || name.length > CONSTANTS.maximumComposerNameLength) {
+						callback({musicId: musicId, success: false, message: "name must be " + CONSTANTS.minimumComposerNameLength " - " + CONSTANTS.maximumComposerNameLength + " characters", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// update this composer
+					const previousName = composer.name
+					composer.name = name
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["composers." + composer.id] = composer
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.composers = {}
+								updatedData.composers[composer.id] = composer
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, message: previousName + " is now " + name, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateTitle */
+		module.exports.actions.updateTitle = updateTitle
+		function updateTitle(REQUEST, music, composer, callback) {
+			try {
+				// get title
+					const title = String(REQUEST.post.title).trim()
+
+				// no title
+					if (!title || !title.length) {
+						callback({musicId: musicId, success: false, message: "missing title", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// invalid length
+					if (CONSTANTS.minimumMusicTitleLength > title.length || title.length > CONSTANTS.maximumMusicTitleLength) {
+						callback({musicId: musicId, success: false, message: "title must be " + CONSTANTS.minimumMusicTitleLength " - " + CONSTANTS.maximumMusicTitleLength + " characters", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["title"] = title
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.title = title
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateComposer */
+		module.exports.actions.updateComposer = updateComposer
+		function updateComposer(REQUEST, music, composer, callback) {
+			try {
+				// get composer
+					const composer = String(REQUEST.post.composer).trim()
+
+				// invalid length
+					if (CONSTANTS.minimumMusicComposerLength > composer.length || composer.length > CONSTANTS.maximumMusicComposerLength) {
+						callback({musicId: musicId, success: false, message: "composer must be " + CONSTANTS.minimumMusicComposerLength " - " + CONSTANTS.maximumMusicComposerLength + " characters", recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["composer"] = composer
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.composer = composer
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateSwing */
+		module.exports.actions.updateSwing = updateSwing
+		function updateSwing(REQUEST, music, composer, callback) {
+			try {
+				// get swing
+					const swing = Boolean(REQUEST.post.swing)
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["swing"] = swing
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.swing = swing
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
 							}
 					})
 			}

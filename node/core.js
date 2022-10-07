@@ -248,12 +248,12 @@
 								composers:    {},
 								title:        "",
 								composer:     "",
+								swing:        false,
 								totalTicks:   0,
 								measureTicks: {},
-								swing:        false,
 								tempoChanges: {},
-								parts:        {},
-								synths:       {}
+								synths:       {},
+								parts:        {}
 							}
 						break
 
@@ -419,6 +419,10 @@
 								minimumComposerNameLength: 3,
 								maximumComposerNameLength: 20,
 								musicIdLength: 8,
+								minimumMusicTitleLength: 1,
+								maximumMusicTitleLength: 100,
+								minimumMusicComposerLength: 0,
+								maximumMusicComposerLength: 100,
 								rounding: 100,
 								attempts: 1000,
 							}

@@ -371,11 +371,12 @@
 		function routeSocket(REQUEST) {
 			try {
 				switch (REQUEST.post.action) {
-					// composition
-						case "leaveMusic":
-						case "updateMusic":
-						case "updateTrack":
+					// music
 						case "uploadSynth":
+						case "updateName":
+						case "updateTitle":
+						case "updateComposer":
+						case "updateSwing":
 							try {
 								MUSIC.updateOne(REQUEST, sendSocketData)
 							}
