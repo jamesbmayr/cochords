@@ -496,7 +496,7 @@
 
 				// invalid length
 					if (CONSTANTS.minimumComposerNameLength > name.length || name.length > CONSTANTS.maximumComposerNameLength) {
-						callback({musicId: musicId, success: false, message: "name must be " + CONSTANTS.minimumComposerNameLength " - " + CONSTANTS.maximumComposerNameLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "name must be " + CONSTANTS.minimumComposerNameLength + " - " + CONSTANTS.maximumComposerNameLength + " characters", recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -556,7 +556,7 @@
 
 				// invalid length
 					if (CONSTANTS.minimumMusicTitleLength > title.length || title.length > CONSTANTS.maximumMusicTitleLength) {
-						callback({musicId: musicId, success: false, message: "title must be " + CONSTANTS.minimumMusicTitleLength " - " + CONSTANTS.maximumMusicTitleLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "title must be " + CONSTANTS.minimumMusicTitleLength + " - " + CONSTANTS.maximumMusicTitleLength + " characters", recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -605,7 +605,7 @@
 
 				// invalid length
 					if (CONSTANTS.minimumMusicComposerLength > composer.length || composer.length > CONSTANTS.maximumMusicComposerLength) {
-						callback({musicId: musicId, success: false, message: "composer must be " + CONSTANTS.minimumMusicComposerLength " - " + CONSTANTS.maximumMusicComposerLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "composer must be " + CONSTANTS.minimumMusicComposerLength + " - " + CONSTANTS.maximumMusicComposerLength + " characters", recipients: [REQUEST.session.id]})
 						return
 					}
 

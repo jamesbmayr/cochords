@@ -1,32 +1,14 @@
 /*** background ***/
 	body {
-		background-color: var(--dark-gray);
-	}
-
-	#background {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translateX(-50%) translateY(-50%);
-		height: 100vw;
-		width: 100vw;
-		max-height: 100vh;
-		max-width: 100vh;
-		background-size: cover;
-		background-position: center;
-		background-repeat: no-repeat;
-		pointer-events: none;
-		filter: blur(var(--blur-size));
+		background: var(--dark-gray);
 	}
 
 	#container {
 		display: block;
-		margin: calc(var(--large-gap-size)) auto;
-		padding: var(--medium-gap-size);
+		margin: var(--large-gap-size) auto 0 auto;
 		text-align: center;
 		width: calc(40 * var(--medium-font-size) + 2 * var(--medium-gap-size));
 		height: calc(100% - 2 * var(--large-gap-size));
-		overflow: hidden;
 		max-width: calc(100vw - var(--medium-gap-size) * 2);
 		box-sizing: border-box;
 	}
@@ -34,8 +16,9 @@
 /*** heading ***/
 	#heading-outer {
 		width: 100%;
-		height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size) + var(--large-font-size) + var(--large-gap-size));
+		height: calc(var(--medium-gap-size) + var(--large-font-size) * 2.5 + var(--medium-gap-size) + var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
 		box-sizing: border-box;
+		padding: var(--medium-gap-size) var(--medium-gap-size) var(--large-gap-size) var(--medium-gap-size);
 	}
 
 	#heading-outer > span {
@@ -48,10 +31,46 @@
 		user-select: none;
 	}
 
+	#heading {
+		width: 100%;
+		display: block;
+		color: var(--light-gray);
+		line-height: 1;
+		margin: 0 0 var(--medium-gap-size) 0;
+		height: calc(var(--large-font-size) * 2.5);
+		font-size: 0;
+		box-sizing: border-box;
+	}
+
+	#heading span {
+		font-size: var(--large-font-size);
+	}
+
+	#logo {
+		height: calc(var(--large-font-size) * 2.5);
+		width: calc(var(--large-font-size) * 5);
+		background-color: transparent;
+		background-image: url(logo.png);
+		background-size: calc(var(--large-font-size) * 5);
+		background-position: center 40%;
+		background-repeat: no-repeat;
+		display: inline-block;
+		vertical-align: bottom;
+		filter: invert(1) drop-shadow(0 0 var(--shadow-size) var(--light-gray));
+		color: transparent;
+		font-size: 0;
+		user-select: none;
+	}
+
+	@media screen and (max-width: 500px) {
+		#heading-outer span {
+			display: none;
+		}
+	}
+
 	#name-input {
 		display: inline-block;
-		text-align: center;
-		width: calc(var(--medium-font-size) * 10 + 2 * var(--medium-gap-size));
+		width: 100%;
 		max-width: 100%;
 		font-size: var(--medium-font-size);
 		padding: var(--medium-gap-size);
@@ -60,42 +79,16 @@
 		border: none;
 	}
 
-	#heading {
-		width: 100%;
-		display: block;
-		color: var(--light-gray);
-		line-height: 1;
-		margin: var(--medium-gap-size) 0 calc(var(--large-gap-size)) 0;
-		font-size: var(--large-font-size);
-	}
-
-	#logo {
-		height: var(--large-font-size);
-		width: var(--large-font-size);
-		background-color: transparent;
-		background-image: url(logo.png);
-		background-size: contain;
-		background-position: center;
-		background-repeat: no-repeat;
-		display: inline-block;
-		vertical-align: bottom;
-	}
-
-	@media screen and (max-width: 500px) {
-		#heading-outer span {
-			display: none;
-		}
-
-		#logo {
-			display: none;
-		}
+	hr {
+		width: calc(100% - 2 * var(--medium-gap-size) - var(--border-size));
+		margin: 0 var(--medium-gap-size);
 	}
 
 /*** actions ***/
 	#actions-outer {
 		width: 100%;
-		height: calc(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size)) + var(--large-gap-size));
-		padding-bottom: var(--large-gap-size);
+		height: calc(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size)));
+		padding: 0 var(--medium-gap-size) var(--large-gap-size) var(--medium-gap-size);
 		box-sizing: border-box;
 	}
 
@@ -103,8 +96,8 @@
 		#create-music-form {
 			float: left;
 			width: 50%;
-			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
-			padding: var(--large-gap-size) var(--medium-gap-size) 0 0;
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			padding: 0 var(--medium-gap-size) 0 0;
 			box-sizing: border-box;
 		}
 
@@ -118,13 +111,12 @@
 		#upload-music-form {
 			float: left;
 			width: 50%;
-			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size));
-			padding: var(--large-gap-size) 0 0 var(--medium-gap-size);
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			padding: 0 0 0 var(--medium-gap-size);
 			box-sizing: border-box;
 		}
 
 		#upload-music-label {
-			text-align: center;
 			width: calc(100% - var(--small-gap-size));
 			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 			background: var(--medium-blue);
@@ -151,7 +143,6 @@
 		}
 
 		#join-music-input {
-			text-align: center;
 			width: 50%;
 			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 			margin-bottom: 0;
@@ -172,13 +163,18 @@
 
 	/* previous */
 		#previous-music-section {
-			margin-top: var(--large-gap-size);
+			padding: var(--large-gap-size) var(--medium-gap-size);
 			float: left;
 			width: 100%;
-			height: calc(100vh - (2 * var(--large-gap-size) + 2 * var(--medium-gap-size)) - (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-font-size) + var(--medium-gap-size) + var(--large-gap-size)) - ((2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size)) + var(--large-gap-size))) - var(--large-gap-size) - 2 * var(--border-size));
+			height: calc(100vh - 
+				(var(--large-gap-size)) -
+				(var(--medium-gap-size) + 2.5 * var(--large-font-size) + var(--medium-gap-size) + (var(--medium-font-size) + 2 * var(--medium-gap-size)) + var(--large-gap-size)) - 
+				(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--large-gap-size))) - 
+				(var(--border-size)));
 			box-shadow: 0 0 var(--shadow-size) var(--dark-gray) inset;
 			overflow-x: hidden;
 			overflow-y: scroll;
+			box-sizing: border-box;
 		}
 
 		#previous-music-none {
@@ -191,8 +187,8 @@
 		}
 
 		.previous-music-button {
-			width: calc(100% - 2 * var(--small-gap-size));
-			margin: var(--small-gap-size);
+			width: 100%;
+			margin: 0 0 var(--medium-gap-size) 0;
 			background: var(--medium-gray);
 		}
 

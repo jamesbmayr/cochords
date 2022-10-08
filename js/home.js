@@ -16,7 +16,6 @@
 	/* elements */
 		const ELEMENTS = {
 			body: document.body,
-			background: document.querySelector("#background"),
 			nameInput: document.querySelector("#name-input"),
 			logo: document.querySelector("#logo"),
 			createMusicForm: document.querySelector("#create-music-form"),

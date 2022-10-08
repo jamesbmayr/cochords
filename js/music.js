@@ -375,8 +375,8 @@
 		function uploadSynth(event) {
 			try {
 				// file
-					const file = ELEMENTS.uploadSynth.files[0]
-					const path = ELEMENTS.uploadSynth.value
+					const file = ELEMENTS.header.uploadSynth.files[0]
+					const path = ELEMENTS.header.uploadSynth.value
 					if (!file || (path.slice(-5).toLowerCase() !== ".json")) {
 						showToast({success: false, message: "only toneMaker-compatible JSON"})
 						return
@@ -437,7 +437,7 @@
 		function receiveTitle(title) {
 			try {
 				// currently editing
-					if (ELEMENTS.header.title = document.activeElement) {
+					if (ELEMENTS.header.title == document.activeElement) {
 						return
 					}
 
@@ -454,7 +454,7 @@
 		function receiveComposer(composer) {
 			try {
 				// currently editing
-					if (ELEMENTS.header.title = document.activeElement) {
+					if (ELEMENTS.header.composer == document.activeElement) {
 						return
 					}
 
@@ -489,7 +489,7 @@
 
 				// set total measure count
 					const measureCount = Object.keys(STATE.music.measureTicks).length
-					ELEMENTS.header.measuresTotal.innerText = measureCount
+					ELEMENTS.header.measuresTotal.value = measureCount
 					ELEMENTS.header.measuresCurrent.max = measureCount
 					if (ELEMENTS.header.measuresCurrent.value > measureCount) {
 						ELEMENTS.header.measuresCurrent.value = measureCount

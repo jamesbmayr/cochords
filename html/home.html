@@ -12,34 +12,29 @@
 		<script src="home.js" defer></script>
 	</head>
 	<body>
-		<div id="background"></div>
 		<a id="j-logo" href="https://jamesmayr.com" target="_blank"></a>
 		<div id="container">
 			<div id="heading-outer">
-				<span>Hello,</span>
-				<input type="text" placeholder="YOUR NAME" id="name-input" autocomplete="off" spellcheck="false" title="composer name"/>
-				<span>!</span>
 				<h1 id="heading">
-					<span>Welcome to</span>
-					<div id="logo"></div>
-					<script node>getAsset("title")</script>node>
-					<span>.</span>
+					<span>Welcome to&nbsp;</span>
+					<div id="logo"><script node>getAsset("title")</script>node></div>
+					<span>,</span>
 				</h1>
+				<input type="text" placeholder="YOUR NAME" id="name-input" autocomplete="off" spellcheck="false" title="composer name"/>
 			</div>
-			<hr>
 			<div id="actions-outer">
 				<form id="create-music-form" method="post" action="javascript:;">
-					<button id="create-music-button" title="create new music">create</button>
+					<button id="create-music-button" title="create new music">+ create</button>
 				</form>
 				<form id="upload-music-form" method="post" action="javascript:;">
 					<label id="upload-music-label" title="upload musicXML file" class="pseudo-button">
-						<span>&UpArrowBar; upload</span>
+						<span>&uarr; upload</span>
 						<input id="upload-music-input" type="file">
 					</label>
 				</form>
 				<form id="join-music-form" method="post" action="javascript:;">
 					<input type="text" placeholder="music id" id="join-music-input" autocomplete="off" spellcheck="false" title="music id input"/>
-					<button id="join-music-button" title="join existing music">join</button>
+					<button id="join-music-button" title="join existing music">&rarr; join</button>
 				</form>
 			</div>
 			<hr>

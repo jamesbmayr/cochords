@@ -402,6 +402,7 @@
 								"large-font-size": "35px",
 								"huge-font-size": "50px",
 								"transition-time": "0.5s",
+								"left-column-size": "200px",
 								"hover-brightness": "0.75",
 								"disabled-brightness": "0.5",
 								"disconnected-opacity": "0.5"

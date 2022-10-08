@@ -13,62 +13,78 @@
 		<script src="music.js" defer></script>
 	</head>
 	<body>
+		<div id="background-logo"></div>
 		<div id="header">
 			<div id="header-file" class="row">
-				<div id="header-file-name-outer">
-					<div id="header-file-logo"></div>
-					<input id="header-file-name" type="text" placeholder="your name" autocomplete="off" spellcheck="false" title="your name">
+				<div class="left-column">
+					<div id="header-file-name-outer">
+						<input id="header-file-name" type="text" placeholder="YOUR NAME" autocomplete="off" spellcheck="false" title="your name">
+					</div>
 				</div>
-				<input id="header-file-title" type="text" placeholder="title" autocomplete="off" spellcheck="false" title="music title">
-				<span>by</span>
-				<input id="header-file-composer" type="text" placeholder="composer(s)" autocomplete="off" spellcheck="false" title="music composers">
-				<button id="header-file-download" title="download musicXML file">&DownArrowBar; musicXML</button>
+				<div class="right-column">
+					<input id="header-file-title" type="text" placeholder="TITLE" autocomplete="off" spellcheck="false" title="music title">
+					<div id="header-file-by">-</div>
+					<input id="header-file-composer" type="text" placeholder="COMPOSER(S)" autocomplete="off" spellcheck="false" title="music composers">
+					<button id="header-file-download" title="download musicXML file">&darr;&nbsp;MUSIC</button>
+				</div>
 			</div>
 			<div id="header-playback" class="row">
-				<label id="header-playback-swing-outer" title="swing" class="pseudo-button">
-					<input id="header-playback-swing" type="checkbox">
-					<span>swing</span>
-				</label>
-				<div id="header-playback-measures-outer">
-					<span>measure</span>
-					<input id="header-playback-measures-current" type="number" min="1" max="1" step="1" value="1" placeholder="current" autocomplete="off">
-					<span>/</span>
-					<div id="header-playback-measures-total"></div>
+				<div class="left-column">
+					<label id="header-playback-swing-outer" title="swing" class="pseudo-button">
+						<input id="header-playback-swing" type="checkbox">
+						<div>&#x266B;&nbsp;swing</div>
+					</label>
 				</div>
-				<label id="header-playback-loop-outer" title="loop playback" class="pseudo-button">
-					<input id="header-playback-loop" type="checkbox">
-					<span>&orarr;</span>
-				</label>
-				<label id="header-playback-metronome-outer" title="metronome" class="pseudo-button">
-					<input id="header-playback-metronome" type="checkbox">
-					<div id="header-playback-metronome-shape">&#9750;</div>
-					<div id="header-playback-metronome-pendulum">|</div>
-				</label>
-				<div id="header-playback-tempo-multiplier-outer">
-					<input type="number" id="header-playback-tempo-multiplier" step="0.1" min="0.1" max="3" value="1" title="tempo multiplier">
-					<div id="header-playback-tempo-multiplier-x">&times;</div>
+				<div class="right-column">
+					<div id="header-playback-measures-outer">
+						<div id="header-playback-measures-m">#</div>
+						<input id="header-playback-measures-current" type="number" min="1" max="1" step="1" value="1" placeholder="measure" autocomplete="off">
+						<div id="header-playback-measures-slash">/</div>
+						<output id="header-playback-measures-total"></output>
+						<label id="header-playback-loop-outer" title="loop playback" class="pseudo-button">
+						<input id="header-playback-loop" type="checkbox">
+						<div>&#10226;</div>
+					</label>
+					</div>
+					<div id="header-playback-controls-outer">
+						<label id="header-playback-metronome-outer" title="metronome" class="pseudo-button">
+							<input id="header-playback-metronome" type="checkbox">
+							<div id="header-playback-metronome-shape">&#9750;</div>
+							<div id="header-playback-metronome-pendulum">|</div>
+						</label>
+						<input type="number" id="header-playback-tempo-multiplier" step="0.1" min="0.1" max="3" value="1" title="tempo multiplier" placeholder="SPEED">
+						<div id="header-playback-tempo-multiplier-x">&times;</div>
+						<label id="header-playback-play-outer" title="play/pause" class="pseudo-button">
+							<input id="header-playback-play" type="checkbox">
+							<div>&#9654;&nbsp;play</div>
+						</label>
+					</div>
+					<label id="header-playback-upload-synth-outer" title="upload synth JSON" class="pseudo-button">
+						<div>&uarr;&nbsp;synth</div>
+						<input id="header-playback-upload-synth-input" type="file">
+					</label>
 				</div>
-				<label id="header-playback-play-outer" title="play/pause" class="pseudo-button">
-					<input id="header-playback-play" type="checkbox">
-					<span>&nbsp;&#9654;</span>
-				</label>
-				<label id="header-playback-upload-synth-outer" title="upload synth JSON" class="pseudo-button">
-					<span>&UpArrowBar; synth</span>
-					<input id="header-playback-upload-synth-input" type="file">
-				</label>
 			</div>
 			<div id="header-beats" class="row">
-				<div id="header-beats-text">beats</div>
-				<div id="header-beats-measures"></div>
-				<button id="header-beats-add-measure" title="add measure">+</button>
+				<div class="left-column">
+					<div id="header-beats-text">beats</div>
+				</div>
+				<div class="right-column">
+					<div id="header-beats-measures"></div>
+					<button id="header-beats-add-measure" title="add measure">+</button>
+				</div>
 			</div>
 			<div id="header-tempo" class="row">
-				<div id="header-tempo-text">tempo</div>
-				<div id="header-tempo-measures"></div>
+				<div class="left-column">
+					<div id="header-tempo-text">tempo</div>
+				</div>
+				<div class="right-column">
+					<div id="header-tempo-measures"></div>
+				</div>
 			</div>
 		</div>
 		<div id="parts">
 		</div>
-		<pre id="data" style="color: var(--light-gray); font-family: monospace; font-size: var(--small-font-size); height:100vh; width:100vw; overflow: scroll;"></pre>
+		<pre id="data" style="display: none; position: absolute; top: 0; left: 0; pointer-events: none; opacity: 0.5;color: var(--light-gray); font-family: monospace; font-size: var(--small-font-size); height:100vh; width:100vw; overflow: scroll;"></pre>
 	</body>
 </html>
