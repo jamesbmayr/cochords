@@ -377,6 +377,10 @@
 						case "updateTitle":
 						case "updateComposer":
 						case "updateSwing":
+						case "insertMeasure":
+						case "deleteMeasure":
+						case "updateTicks":
+						case "updateTempo":
 							try {
 								MUSIC.updateOne(REQUEST, sendSocketData)
 							}

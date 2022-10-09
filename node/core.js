@@ -246,7 +246,7 @@
 								created:      new Date().getTime(),
 								updated:      new Date().getTime(),
 								composers:    {},
-								title:        "",
+								title:        "untitled",
 								composer:     "",
 								swing:        false,
 								totalTicks:   0,
@@ -301,10 +301,8 @@
 
 						case "measure":
 							return {
-								ticks:    0,
-								tempo:    null,
-								dynamics: null,
-								notes:    {}
+								notes:    {},
+								ticks:    0
 							}
 						break
 
@@ -403,6 +401,8 @@
 								"huge-font-size": "50px",
 								"transition-time": "0.5s",
 								"left-column-size": "200px",
+								"pitch-height": "5px",
+								"tick-width": "1px",
 								"hover-brightness": "0.75",
 								"disabled-brightness": "0.5",
 								"disconnected-opacity": "0.5"
@@ -424,6 +424,9 @@
 								maximumMusicTitleLength: 100,
 								minimumMusicComposerLength: 0,
 								maximumMusicComposerLength: 100,
+								defaultTicks: 96,
+								defaultTempo: 120,
+								defaultDynamics: 0.69,
 								rounding: 100,
 								attempts: 1000,
 							}

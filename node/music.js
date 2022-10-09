@@ -687,3 +687,333 @@
 				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
 			}
 		}
+
+	/* insertMeasure */
+		module.exports.actions.insertMeasure = insertMeasure
+		function insertMeasure(REQUEST, music, composer, callback) {
+			try {
+				// get measure number
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					if (!measureNumber || measureNumber < 0) {
+						callback({musicId: musicId, success: false, message: "cannot insert a measure before measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// get counts
+					const newMeasureTicks = (!lastMeasureNumber ? CONSTANTS.defaultTicks : 
+											(measureNumber == 1) ? music.measureTicks["1"] : 
+											music.measureTicks[String(measureNumber - 1)]) || CONSTANTS.defaultTicks
+
+				// renumber all higher measures in measureTicks
+					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+						music.measureTicks[String(m + 1)] = music.measureTicks[String(m)]
+					}
+					music.measureTicks[String(measureNumber)] = newMeasureTicks
+
+				// renumber all higher measures in tempoChanges
+					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+						if (music.tempoChanges[String(m)]) {
+							music.tempoChanges[String(m + 1)] = music.tempoChanges[String(m)]
+							delete music.tempoChanges[String(m)]
+						}
+					}
+					if (measureNumber == 1) {
+						if (!lastMeasureNumber) {
+							music.tempoChanges["1"] = CONSTANTS.defaultTempo
+						}
+						else {
+							music.tempoChanges["1"] = music.tempoChanges["2"] || CONSTANTS.defaultTempo
+							delete music.tempoChanges["2"]
+						}
+					}
+
+				// renumber all higher measures in all parts
+					for (let p in music.parts) {
+						for (let s in music.parts[p].staves) {
+							const staff = music.parts[p].staves[s]
+							for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+								staff[String(m + 1)] = duplicateObject(staff[String(m)] || CORE.getSchema("measure"))
+							}
+
+							const newMeasure = CORE.getSchema("measure")
+								newMeasure.ticks = newMeasureTicks
+								if (measureNumber == 1) {
+									if (!lastMeasureNumber) {
+										newMeasure.dynamics = CONSTANTS.defaultDynamics
+									}
+									else {
+										newMeasure.dynamics = staff["2"].dynamics || CONSTANTS.defaultDynamics
+										delete staff["2"].dynamics
+									}
+								}
+							staff[String(measureNumber)] = newMeasure
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["measureTicks"] = music.measureTicks
+						query.document["tempoChanges"] = music.tempoChanges
+						query.document["parts"] = music.parts
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.measureTicks = music.measureTicks
+								updatedData.tempoChanges = music.tempoChanges
+								updatedData.parts = music.parts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, message: "inserted measure " + measureNumber, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* deleteMeasure */
+		module.exports.actions.deleteMeasure = deleteMeasure
+		function deleteMeasure(REQUEST, music, composer, callback) {
+			try {
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > Object.keys(music.measureTicks).length) {
+						callback({musicId: musicId, success: false, message: "cannot delete measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// renumber all higher measures in measureTicks
+					for (let m = measureNumber; m < lastMeasureNumber; m++) {
+						music.measureTicks[String(m)] = music.measureTicks[String(m + 1)]
+					}
+					delete music.measureTicks[String(lastMeasureNumber)]
+
+				// renumber all higher measures in tempoChanges
+					if (measureNumber !== 1) {
+						delete music.tempoChanges[String(measureNumber)]
+					}
+					for (let m = measureNumber; m < lastMeasureNumber; m++) {
+						if (music.tempoChanges[String(m + 1)]) {
+							music.tempoChanges[String(m)] = music.tempoChanges[String(m + 1)]
+							delete music.tempoChanges[String(m + 1)]
+						}
+					}
+
+				// renumber all higher measures in all parts
+					for (let p in music.parts) {
+						for (let s in music.parts[p].staves) {
+							const staff = music.parts[p].staves[s]
+							for (let m = measureNumber; m > lastMeasureNumber; m++) {
+								staff[String(m)] = duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
+							}
+							delete staff[String(lastMeasureNumber)]
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["measureTicks"] = music.measureTicks
+						query.document["tempoChanges"] = music.tempoChanges
+						query.document["parts"] = music.parts
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.measureTicks = music.measureTicks
+								updatedData.tempoChanges = music.tempoChanges
+								updatedData.parts = music.parts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, message: "deleted measure " + measureNumber, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateTicks */
+		module.exports.actions.updateTicks = updateTicks
+		function updateTicks(REQUEST, music, composer, callback) {
+			try {
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change beats for measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// get counts
+					const newTicks = Math.floor(REQUEST.post.ticks || 0)
+					if (!newTicks || newTicks < 0) {
+						const previousData = {measureTicks: {}}
+							previousData.measureTicks[String(measureNumber)] = music.measureTicks[String(measureNumber)]
+						callback({musicId: musicId, success: false, message: "invalid # beats for measure " + measureNumber, music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// change beats for this measure in measureTicks
+					music.measureTicks[String(measureNumber)] = newTicks
+
+				// change beats for this measure in all parts
+					for (let p in music.parts) {
+						for (let s in music.parts[p].staves) {
+							const measure = music.parts[p].staves[s][String(measureNumber)]
+							measure.ticks = newTicks
+
+							for (let n in measure.notes) {
+								if (Number(n) >= measure.ticks) {
+									delete measure.notes[n]
+								}
+							}
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["measureTicks"] = music.measureTicks
+						query.document["parts"] = music.parts
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.measureTicks = music.measureTicks
+								updatedData.parts = music.parts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updateTempo */
+		module.exports.actions.updateTempo = updateTempo
+		function updateTempo(REQUEST, music, composer, callback) {
+			try {
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change tempo for measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// get tempo
+					const newTempo = Math.floor(REQUEST.post.tempo || 0)
+					if (newTempo < 0) {
+						const previousData = {tempoChanges: {}}
+							previousData.tempoChanges[String(measureNumber)] = music.tempoChanges[String(measureNumber)]
+						callback({musicId: musicId, success: false, message: "cannot change to a negative tempo for measure " + measureNumber, music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// change tempo for this measure in tempoChanges
+					if (newTempo) {
+						music.tempoChanges[String(measureNumber)] = newTempo
+					}
+					else {
+						if (measureNumber == 1) {
+							const previousData = {tempoChanges: {"1": music.tempoChanges["1"]}}
+							callback({musicId: musicId, success: false, message: "cannot remove tempo from first measure", music: previousData, recipients: [REQUEST.session.id]})
+							return
+						}
+						delete music.tempoChanges[String(measureNumber)]
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["tempoChanges"] = music.tempoChanges
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.tempoChanges = music.tempoChanges
+								updatedData.parts = music.parts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}

@@ -13,7 +13,6 @@
 		<script src="music.js" defer></script>
 	</head>
 	<body>
-		<div id="background-logo"></div>
 		<div id="header">
 			<div id="header-file" class="row">
 				<div class="left-column">
@@ -65,25 +64,24 @@
 					</label>
 				</div>
 			</div>
-			<div id="header-beats" class="row">
-				<div class="left-column">
-					<div id="header-beats-text">beats</div>
-				</div>
-				<div class="right-column">
-					<div id="header-beats-measures"></div>
-					<button id="header-beats-add-measure" title="add measure">+</button>
-				</div>
-			</div>
-			<div id="header-tempo" class="row">
-				<div class="left-column">
-					<div id="header-tempo-text">tempo</div>
-				</div>
-				<div class="right-column">
-					<div id="header-tempo-measures"></div>
-				</div>
-			</div>
 		</div>
-		<div id="parts">
+		<div id="content">
+			<div id="content-background"></div>
+			<div id="content-left" class="left-column">
+				<div id="content-left-measures">
+					<div class="measure-text">|&nbsp;bars&nbsp;|</div>
+					<div class="measure-text">&#x2669;BEATS</div>
+					<div class="measure-text">tempo</div>
+				</div>
+				<div id="content-left-parts"></div>
+			</div>
+			<div id="content-right" class="right-column">
+				<div id="content-right-measures"></div>
+				<div id="content-add-measure-outer">
+					<button id="content-add-measure" title="add measure">+</button>
+				</div>
+				<div id="content-right-parts" class="row">THIS IS SAMPLE TEXT<br>MORE TEXT<br>THIS SHOULD SCROLL TOO</div>
+			</div>
 		</div>
 		<pre id="data" style="display: none; position: absolute; top: 0; left: 0; pointer-events: none; opacity: 0.5;color: var(--light-gray); font-family: monospace; font-size: var(--small-font-size); height:100vh; width:100vw; overflow: scroll;"></pre>
 	</body>
