@@ -401,8 +401,9 @@
 								"huge-font-size": "50px",
 								"transition-time": "0.5s",
 								"left-column-size": "200px",
-								"pitch-height": "5px",
-								"tick-width": "1px",
+								"pitch-height": "3px",
+								"tick-width": "5px",
+								"pitch-count": "73",
 								"hover-brightness": "0.75",
 								"disabled-brightness": "0.5",
 								"disconnected-opacity": "0.5"

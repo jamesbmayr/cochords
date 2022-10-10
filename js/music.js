@@ -84,14 +84,18 @@
 				tempoMultiplier: document.querySelector("#header-playback-tempo-multiplier"),
 				play: document.querySelector("#header-playback-play"),
 				uploadSynth: document.querySelector("#header-playback-upload-synth-input"),
-				measuresContainer: document.querySelector("#content-right-measures"),
-				measures: {},
-				measuresAdd: document.querySelector("#content-add-measure")
 			},
-			partsInfoContainer: document.querySelector("#content-left-parts"),
-			partsMeasuresContainer: document.querySelector("#content-right"),
-			parts: {},
-			partsAdd: document.querySelector("#content-add-part")
+			content: {
+				measuresContainer: document.querySelector("#content-measures"),
+				measures: {},
+				measuresSpacer: document.querySelector("#content-measures-spacer"),
+				measuresAdd: document.querySelector("#content-measures-add"),
+				partsContainer: document.querySelector("#content-parts"),
+				parts: {},
+				partsAddRow: document.querySelector("#content-parts-add-row"),
+				partsAdd: document.querySelector("#content-parts-add"),
+				partsSpacer: document.querySelector("#content-parts-spacer")
+			}
 		}
 
 /*** tools ***/
@@ -511,8 +515,8 @@
 							const synthName = STATE.music.synths[s].name
 
 						// find in parts
-							for (let p in ELEMENTS.parts) {
-								const customSynths = ELEMENTS.parts[p].synthCustom
+							for (let p in ELEMENTS.content.parts) {
+								const customSynths = ELEMENTS.content.parts[p].synthCustom
 								if (!customSynths.querySelector("[value='" + synthName + "']")) {
 									const synthOption = document.createElement("option")
 										synthOption.value = synthName
@@ -577,19 +581,19 @@
 						// delete
 							if (measureTicks[m] === null) {
 								delete STATE.music.measureTicks[m]
-								ELEMENTS.header.measures[m].element.remove()
-								delete ELEMENTS.header.measures[m]
+								ELEMENTS.content.measures[m].element.remove()
+								delete ELEMENTS.content.measures[m]
 								continue
 							}
 
 						// upsert
 							STATE.music.measureTicks[m] = measureTicks[m]
-							if (!ELEMENTS.header.measures[m]) {
-								ELEMENTS.header.measures[m] = buildMeasure(m)
+							if (!ELEMENTS.content.measures[m]) {
+								ELEMENTS.content.measures[m] = buildMeasure(m)
 							}
 							
-							ELEMENTS.header.measures[m].element.style.width = "calc(var(--tick-width) * " + measureTicks[m] + " + var(--border-size))";
-							ELEMENTS.header.measures[m].beatsInput.value = Math.floor(measureTicks[m] / CONSTANTS.ticksPerBeat)
+							ELEMENTS.content.measures[m].element.style.width = "calc(var(--tick-width) * " + measureTicks[m] + " + var(--border-size))";
+							ELEMENTS.content.measures[m].beatsInput.value = Math.floor(measureTicks[m] / CONSTANTS.ticksPerBeat)
 					}
 
 				// set total measure count
@@ -610,17 +614,17 @@
 						// delete
 							if (tempoChanges[m] === null) {
 								delete STATE.music.tempoChanges[m]
-								if (ELEMENTS.header.measures[m]) {
-									ELEMENTS.header.measures[m].tempoInput.value = 0
-									ELEMENTS.header.measures[m].tempoInput.setAttribute("value-present", false)
+								if (ELEMENTS.content.measures[m]) {
+									ELEMENTS.content.measures[m].tempoInput.value = 0
+									ELEMENTS.content.measures[m].tempoInput.setAttribute("value-present", false)
 								}
 								continue
 							}
 
 						// upsert
 							STATE.music.tempoChanges[m] = tempoChanges[m]
-							ELEMENTS.header.measures[m].tempoInput.value = tempoChanges[m]
-							ELEMENTS.header.measures[m].tempoInput.setAttribute("value-present", true)
+							ELEMENTS.content.measures[m].tempoInput.value = tempoChanges[m]
+							ELEMENTS.content.measures[m].tempoInput.setAttribute("value-present", true)
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -629,11 +633,11 @@
 		function buildMeasure(m) {
 			try {
 				// measure
-					const measure = document.createElement("div")
+					const measure = document.createElement("th")
 						measure.className = "music-measure"
 						measure.id = "music-measure-" + m
 						measure.setAttribute("measure", m)
-					ELEMENTS.header.measuresContainer.appendChild(measure)
+					ELEMENTS.content.measuresContainer.insertBefore(measure, ELEMENTS.content.measuresSpacer)
 
 				// insert measure before
 					const insertButton = document.createElement("button")
@@ -694,7 +698,7 @@
 		}
 
 	/* addMeasure */
-		ELEMENTS.header.measuresAdd.addEventListener(TRIGGERS.click, addMeasure)
+		ELEMENTS.content.measuresAdd.addEventListener(TRIGGERS.click, addMeasure)
 		function addMeasure(event) {
 			try {
 				// get last measure
@@ -822,16 +826,16 @@
 						// delete
 							if (partJSON === null) {
 								delete STATE.music.parts[id]
-								ELEMENTS.parts[id].infoContainer.remove()
-								ELEMENTS.parts[id].measuresContainer.remove()
-								delete ELEMENTS.parts[id]
+								ELEMENTS.content.parts[id].infoContainer.remove()
+								ELEMENTS.content.parts[id].measuresContainer.remove()
+								delete ELEMENTS.content.parts[id]
 								continue
 							}
 
 						// upsert
-							if (!ELEMENTS.parts[id]) {
+							if (!ELEMENTS.content.parts[id]) {
 								STATE.music.parts[id] = {}
-								ELEMENTS.parts[id] = buildPart(id)
+								ELEMENTS.content.parts[id] = buildPart(id)
 							}
 							
 							receivePart(id, partJSON)
@@ -843,7 +847,28 @@
 		function receivePart(partId, partJSON) {
 			try {
 				// get part
-					const partObject = ELEMENTS.parts[partId]
+					const partObject = ELEMENTS.content.parts[partId]
+
+				// editor
+					if (partJSON.editorId !== undefined) {
+						if (partJSON.editorId == null) {
+							delete STATE.music.parts[partId].editorId
+							partObject.editorText.innerHTML = ""
+							partObject.editInput.checked = false
+							partObject.measuresContainer.removeAttribute("locked")
+						}
+						else if (partJSON.editorId == STATE.composerId) {
+							STATE.music.parts[partId].editorId = partJSON.editorId
+							partObject.editInput.checked = true
+							partObject.measuresContainer.setAttribute("locked", "self")
+						}
+						else {
+							STATE.music.parts[partId].editorId = partJSON.editorId
+							partObject.editorText.innerHTML = "&#128274;&nbsp;" + STATE.music.composers[partJSON.editorId].name
+							partObject.editInput.checked = false
+							partObject.measuresContainer.setAttribute("locked", "other")
+						}
+					}
 
 				// info
 					if (partJSON.name) {
@@ -930,25 +955,55 @@
 	/* buildPart */
 		function buildPart(partId) {
 			try {
-				// info
-					const infoContainer = document.createElement("div")
-						infoContainer.className = "part-info"
-						infoContainer.id = "part-info-" + partId
-						infoContainer.setAttribute("partid", partId)
-					ELEMENTS.partsInfoContainer.appendChild(infoContainer)
+				// row
+					const partRow = document.createElement("tr")
+						partRow.className = "part-row"
+						partRow.id = "part-row-" + partId
+						partRow.setAttribute("partid", partId)
+					ELEMENTS.content.partsContainer.insertBefore(partRow, ELEMENTS.content.partsAddRow)
 
-					// delete
-						const partDelete = document.createElement("button")
-							partDelete.className = "part-info-delete"
-							partDelete.innerHTML = "&times;&nbsp;delete"
-							partDelete.title = "permanently delete part from score"
-							partDelete.addEventListener(TRIGGERS.click, deletePart)
-						infoContainer.appendChild(partDelete)
+				// info
+					const infoContainer = document.createElement("th")
+						infoContainer.className = "part-info"
+					partRow.appendChild(infoContainer)
+
+					const infoContainerInner = document.createElement("div")
+						infoContainerInner.className = "part-info-inner"
+					infoContainer.appendChild(infoContainerInner)
+
+					// edit
+						const partEditLabel = document.createElement("label")
+							partEditLabel.className = "part-info-edit-outer"
+						infoContainerInner.appendChild(partEditLabel)
+
+							const partEdit = document.createElement("input")
+								partEdit.className = "part-info-edit"
+								partEdit.type = "checkbox"
+								partEdit.addEventListener(TRIGGERS.change, updatePartEditor)
+							partEditLabel.appendChild(partEdit)
+
+							const partEditorText = document.createElement("div")
+								partEditorText.innerText = ""
+								partEditorText.className = "part-info-editor"
+							partEditLabel.appendChild(partEditorText)
+
+							const partEditText = document.createElement("div")
+								partEditText.className = "part-info-edit-text pseudo-button"
+								partEditText.innerHTML = "&#x270F;&nbsp;edit"
+								partEditText.title = "edit this part"
+							partEditLabel.appendChild(partEditText)
+
+							const partDelete = document.createElement("button")
+								partDelete.className = "part-info-edit-delete"
+								partDelete.innerHTML = "&times;&nbsp;delete"
+								partDelete.title = "permanently delete part from score"
+								partDelete.addEventListener(TRIGGERS.click, deletePart)
+							partEditLabel.appendChild(partDelete)
 
 					// name
 						const partNameLabel = document.createElement("label")
 							partNameLabel.className = "part-info-label"
-						infoContainer.appendChild(partNameLabel)
+						partEditLabel.appendChild(partNameLabel)
 
 							const partNameText = document.createElement("span")
 								partNameText.innerText = "name"
@@ -965,7 +1020,7 @@
 					// instrument
 						const partInstrumentLabel = document.createElement("label")
 							partInstrumentLabel.className = "part-info-label"
-						infoContainer.appendChild(partInstrumentLabel)
+						partEditLabel.appendChild(partInstrumentLabel)
 
 							const partInstrumentText = document.createElement("span")
 								partInstrumentText.innerText = "midi"
@@ -988,7 +1043,7 @@
 					// synth
 						const partSynthLabel = document.createElement("label")
 							partSynthLabel.className = "part-info-label"
-						infoContainer.appendChild(partSynthLabel)
+						partEditLabel.appendChild(partSynthLabel)
 
 							const partSynthText = document.createElement("span")
 								partSynthText.innerText = "synth"
@@ -1042,7 +1097,7 @@
 					// volume
 						const partVolumeLabel = document.createElement("label")
 							partVolumeLabel.className = "part-info-label part-info-volume-label"
-						infoContainer.appendChild(partVolumeLabel)
+						infoContainerInner.appendChild(partVolumeLabel)
 
 							const partVolumeText = document.createElement("span")
 								partVolumeText.innerHTML = "&#x1F508;"
@@ -1059,22 +1114,18 @@
 								partVolume.addEventListener(TRIGGERS.input, setPartVolume)
 							partVolumeLabel.appendChild(partVolume)
 
-				// measures
-					const measuresContainer = document.createElement("div")
-						measuresContainer.className = "part-measures"
-						measuresContainer.setAttribute("partid", partId)
-					ELEMENTS.partsMeasuresContainer.appendChild(measuresContainer)
-
 				// object
 					return {
 						infoContainer: infoContainer,
+						editorText: partEditorText,
+						editInput: partEdit,
 						volumeInput: partVolume,
 						nameInput: partName,
 						instrumentSelect: partInstrument,
 						synthSelect: partSynth,
 						synthCustom: customGroup,
 						deleteButton: partDelete,
-						measuresContainer: measuresContainer,
+						measuresContainer: partRow,
 						measures: {}
 					}
 			} catch (error) {console.log(error)}
@@ -1084,7 +1135,7 @@
 		function buildPartMeasure(measuresContainer, measureNumber) {
 			try {
 				// measure
-					const measure = document.createElement("div")
+					const measure = document.createElement("td")
 						measure.className = "part-measure"
 						measure.setAttribute("measure", measureNumber)
 					measuresContainer.appendChild(measure)
@@ -1127,13 +1178,58 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* updatePartEditor */
+		function updatePartEditor(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-row").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by you --> clear
+					if (STATE.music.parts[partId].editorId == STATE.composerId) {
+						STATE.socket.send(JSON.stringify({
+							action: "updatePartEditor",
+							composerId: STATE.composerId,
+							musicId: STATE.music.id,
+							partId: partId,
+							editorId: null
+						}))
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId) {
+						showToast({success: false, message: "part is being edited"})
+						ELEMENTS.content.parts[partId].editInput.checked = false
+						return
+					}
+
+				// available
+					STATE.socket.send(JSON.stringify({
+						action: "updatePartEditor",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId,
+						editorId: STATE.composerId
+					}))
+			} catch (error) {console.log(error)}
+		}
+
 	/* updatePartName */
 		function updatePartName(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-info").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId !== STATE.composerId) {
 						return
 					}
 
@@ -1160,9 +1256,14 @@
 		function updatePartInstrument(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-info").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId !== STATE.composerId) {
 						return
 					}
 
@@ -1189,9 +1290,14 @@
 		function updatePartSynth(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-info").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId !== STATE.composerId) {
 						return
 					}
 
@@ -1218,9 +1324,14 @@
 		function deletePart(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-info").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId !== STATE.composerId) {
 						return
 					}
 
@@ -1235,7 +1346,7 @@
 		}
 
 	/* addPart */
-		ELEMENTS.partsAdd.addEventListener(TRIGGERS.click, addPart)
+		ELEMENTS.content.partsAdd.addEventListener(TRIGGERS.click, addPart)
 		function addPart(event) {
 			try {
 				// send to server
@@ -1251,9 +1362,14 @@
 		function updatePartMeasureDynamics(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-measures").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// edited by someone else
+					if (STATE.music.parts[partId].editorId !== STATE.composerId) {
 						return
 					}
 
@@ -1291,7 +1407,7 @@
 		function setPartVolume(event) {
 			try {
 				// get part
-					const partId = event.target.closest(".part-info").getAttribute("partid")
+					const partId = event.target.closest(".part-row").getAttribute("partid")
 					if (!partId) {
 						showToast({success: false, message: "unable to find part"})
 						return

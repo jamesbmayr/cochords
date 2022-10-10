@@ -55,7 +55,7 @@
 						<div id="header-playback-tempo-multiplier-x">&times;</div>
 						<label id="header-playback-play-outer" title="play/pause" class="pseudo-button">
 							<input id="header-playback-play" type="checkbox">
-							<div>&#9654;&nbsp;play</div>
+							<div>&#9654;play</div>
 						</label>
 					</div>
 					<label id="header-playback-upload-synth-outer" title="upload synth JSON" class="pseudo-button">
@@ -65,23 +65,33 @@
 				</div>
 			</div>
 		</div>
-		<div id="content">
-			<div id="content-background"></div>
-			<div id="content-left" class="left-column">
-				<div id="content-left-measures">
-					<div class="measure-text">|&nbsp;bars&nbsp;|</div>
-					<div class="measure-text">&#x2669;beats</div>
-					<div class="measure-text">tempo</div>
-				</div>
-				<div id="content-left-parts"></div>
-				<button id="content-add-part">+&nbsp;part</button>
-			</div>
-			<div id="content-right" class="right-column">
-				<div id="content-right-measures"></div>
-				<div id="content-add-measure-outer">
-					<button id="content-add-measure" title="add measure">+</button>
-				</div>
-			</div>
+		<div id="content-outer">
+			<table id="content">
+				<caption id="content-background"></caption>
+				<thead id="content-measures-outer">
+					<tr id="content-measures">
+						<th id="content-measures-text">
+							<div class="measures-text">|&nbsp;bars&nbsp;|</div>
+							<div class="measures-text">&#x2669;beats</div>
+							<div class="measures-text">tempo</div>
+						</th>
+						<th id="content-measures-spacer"></th>
+						<th id="content-measures-add-outer">
+							<button id="content-measures-add" title="add measure">+</button>
+						</th>
+					</tr>
+				</thead>
+				<tbody id="content-parts">
+					<tr id="content-parts-add-row">
+						<th id="content-parts-add-outer">
+							<button id="content-parts-add">+&nbsp;part</button>
+						</th>
+					</tr>
+					<tr id="content-parts-spacer">
+						<th></th>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	</body>
 </html>

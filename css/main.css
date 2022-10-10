@@ -114,7 +114,7 @@
 			outline: none;
 			padding: var(--medium-gap-size);
 			line-height: 1;
-			height: calc(var(--medium-font-size));
+			height: calc(2 * var(--medium-gap-size) + var(--medium-font-size));
 			vertical-align: top;
 			-webkit-appearance: none;
 			transition: var(--transition-time);

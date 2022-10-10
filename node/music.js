@@ -431,6 +431,15 @@
 						}
 						query.document["composers." + composer.id] = composer
 
+				// parts?
+					const updatedParts = {}
+					for (let p in music.parts) {
+						if (music.parts[p].editorId == composer.id) {
+							updatedParts[p] = {editorId: null}
+							query.document["parts." + p + ".editorId"] = null
+						}
+					}
+
 				// update
 					CORE.accessDatabase(query, function(results) {
 						if (!results.success) {
@@ -445,6 +454,9 @@
 							const updatedData = {}
 								updatedData.composers = {}
 								updatedData.composers[composer.id] = composer
+								if (Object.keys(updatedParts).length) {
+									updatedData.parts = updatedParts
+								}
 
 						// inform other composers
 							for (let i in music.composers) {
@@ -522,18 +534,22 @@
 		module.exports.actions.updateName = updateName
 		function updateName(REQUEST, music, composer, callback) {
 			try {
+				// previous data
+					const previousData = {composers: {}}
+						previousData.composers[composer.id] = composer
+
 				// get name
 					const name = String(REQUEST.post.name).trim()
 
 				// no name
 					if (!name || !name.length) {
-						callback({musicId: musicId, success: false, message: "missing name", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "missing name", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
 				// invalid length
 					if (CONSTANTS.minimumComposerNameLength > name.length || name.length > CONSTANTS.maximumComposerNameLength) {
-						callback({musicId: musicId, success: false, message: "name must be " + CONSTANTS.minimumComposerNameLength + " - " + CONSTANTS.maximumComposerNameLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "name must be " + CONSTANTS.minimumComposerNameLength + " - " + CONSTANTS.maximumComposerNameLength + " characters", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -582,18 +598,21 @@
 		module.exports.actions.updateTitle = updateTitle
 		function updateTitle(REQUEST, music, composer, callback) {
 			try {
+				// previous data
+					const previousData = {title: music.title}
+
 				// get title
 					const title = String(REQUEST.post.title).trim()
 
 				// no title
 					if (!title || !title.length) {
-						callback({musicId: musicId, success: false, message: "missing title", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "missing title", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
 				// invalid length
 					if (CONSTANTS.minimumMusicTitleLength > title.length || title.length > CONSTANTS.maximumMusicTitleLength) {
-						callback({musicId: musicId, success: false, message: "title must be " + CONSTANTS.minimumMusicTitleLength + " - " + CONSTANTS.maximumMusicTitleLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "title must be " + CONSTANTS.minimumMusicTitleLength + " - " + CONSTANTS.maximumMusicTitleLength + " characters", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -637,12 +656,15 @@
 		module.exports.actions.updateComposer = updateComposer
 		function updateComposer(REQUEST, music, composer, callback) {
 			try {
+				// previous data
+					const previousData = {composer: music.composer}
+
 				// get composer
 					const composer = String(REQUEST.post.composer).trim()
 
 				// invalid length
 					if (CONSTANTS.minimumMusicComposerLength > composer.length || composer.length > CONSTANTS.maximumMusicComposerLength) {
-						callback({musicId: musicId, success: false, message: "composer must be " + CONSTANTS.minimumMusicComposerLength + " - " + CONSTANTS.maximumMusicComposerLength + " characters", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "composer must be " + CONSTANTS.minimumMusicComposerLength + " - " + CONSTANTS.maximumMusicComposerLength + " characters", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -953,11 +975,13 @@
 						return
 					}
 
+				// previous data
+					const previousData = {measureTicks: {}}
+						previousData.measureTicks[String(measureNumber)] = music.measureTicks[String(measureNumber)]
+
 				// get counts
 					const newTicks = Math.floor(REQUEST.post.ticks || 0)
 					if (!newTicks || newTicks < 0) {
-						const previousData = {measureTicks: {}}
-							previousData.measureTicks[String(measureNumber)] = music.measureTicks[String(measureNumber)]
 						callback({musicId: musicId, success: false, message: "invalid # beats for measure " + measureNumber, music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
@@ -1034,11 +1058,13 @@
 						return
 					}
 
+				// previous data
+					const previousData = {tempoChanges: {}}
+						previousData.tempoChanges[String(measureNumber)] = music.tempoChanges[String(measureNumber)]
+
 				// get tempo
 					const newTempo = Math.floor(REQUEST.post.tempo || 0)
 					if (newTempo < 0) {
-						const previousData = {tempoChanges: {}}
-							previousData.tempoChanges[String(measureNumber)] = music.tempoChanges[String(measureNumber)]
 						callback({musicId: musicId, success: false, message: "cannot change to a negative tempo for measure " + measureNumber, music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
@@ -1094,6 +1120,84 @@
 			}
 		}
 
+	/* updatePartEditor */
+		module.exports.actions.updatePartEditor = updatePartEditor
+		function updatePartEditor(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {editor: part.editorId}
+
+				// already being edited by someone else
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// illegal move
+					const editorId = REQUEST.post.editorId
+					if (editorId && !(editorId in music.composers)) {
+						callback({musicId: musicId, success: false, message: "cannot make someone else edit part " + partId, music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId + ".editorId"] = editorId
+
+				// editing others?
+					const updatedOtherParts = {}
+					for (let p in music.parts) {
+						if (music.parts[p].editorId == composer.id) {
+							updatedOtherParts[p] = {editorId: null}
+							query.document["parts." + p + ".editorId"] = null
+						}
+					}
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = {editorId: editorId}
+								for (let i in updatedOtherParts) {
+									updatedData.parts[i] = updatedOtherParts[i]
+								}
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
 	/* updatePartName */
 		module.exports.actions.updatePartName = updatePartName
 		function updatePartName(REQUEST, music, composer, callback) {
@@ -1106,11 +1210,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {name: part.name}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// get name
 					const name = String(REQUEST.post.name) || null
 					if (!name || CONSTANTS.minimumPartNameLength > name.length || name.length > CONSTANTS.maximumPartNameLength) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = {name: part.name}
 						callback({musicId: musicId, success: false, message: "part name must be " + CONSTANTS.minimumPartNameLength + " to " + CONSTANTS.maximumPartNameLength + " characters", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
@@ -1164,12 +1276,20 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {midiProgram: part.midiProgram, instrument: part.instrument}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// get midiChannel
 					const midiToInstrument = CORE.getAsset("midiToInstrument")
 					const midiProgram = String(REQUEST.post.midiProgram) || null
 					if (!(midiProgram in midiToInstrument)) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = {midiProgram: part.midiProgram, instrument: part.instrument}
 						callback({musicId: musicId, success: false, message: "unknown MIDI instrument", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
@@ -1238,11 +1358,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {synth: part.synth}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// get synth
 					const synth = String(REQUEST.post.synth) || null
 					if (!synth) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = {synth: part.synth}
 						callback({musicId: musicId, success: false, message: "unknown synth", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
@@ -1295,6 +1423,12 @@
 						return
 					}
 					const part = music.parts[REQUEST.post.partId]
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", recipients: [REQUEST.session.id]})
+						return
+					}
 
 				// query
 					const query = CORE.getSchema("query")
@@ -1427,16 +1561,24 @@
 						return
 					}
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {staves: {}}
+						for (let s in part.staves) {
+							previousData.parts[partId].staves[s] = {}
+							previousData.parts[partId].staves[s][measureNumber] = {dynamics: part.staves[s][measureNumber].dynamics}
+						}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// get dynamic
 					let dynamic = REQUEST.post.dynamic
 					if (dynamic == "-") {
 						if (measureNumber == "1") {
-							const previousData = {parts: {}}
-								previousData.parts[partId] = {staves: {}}
-								for (let s in part.staves) {
-									previousData.parts[partId].staves[s] = {}
-									previousData.parts[partId].staves[s][measureNumber] = {dynamics: part.staves[s][measureNumber].dynamics}
-								}
 							callback({musicId: musicId, success: false, message: "cannot remove dynamics from measure 1", music: previousData, recipients: [REQUEST.session.id]})
 							return
 						}
@@ -1444,7 +1586,7 @@
 					else {
 						const dynamicToNumber = CORE.getAsset("dynamicToNumber")
 						if (isNaN(dynamic) || dynamic < 0 || dynamic > dynamicToNumber[Object.keys(dynamicToNumber)[0]]) {
-							callback({musicId: musicId, success: false, message: "unknown dynamic for " + measureNumber, recipients: [REQUEST.session.id]})
+							callback({musicId: musicId, success: false, message: "unknown dynamic for " + measureNumber, music: previousData, recipients: [REQUEST.session.id]})
 							return
 						}
 						dynamic = Number(dynamic)
