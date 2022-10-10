@@ -370,28 +370,8 @@
 	/* routeSocket */
 		function routeSocket(REQUEST) {
 			try {
-				switch (REQUEST.post.action) {
-					// music
-						case "uploadSynth":
-						case "updateName":
-						case "updateTitle":
-						case "updateComposer":
-						case "updateSwing":
-						case "insertMeasure":
-						case "deleteMeasure":
-						case "updateTicks":
-						case "updateTempo":
-							try {
-								MUSIC.updateOne(REQUEST, sendSocketData)
-							}
-							catch (error) {_400(REQUEST, "unable to " + REQUEST.post.action)}
-						break
-
-					// other
-						default:
-							return
-						break
-				}
+				// to music
+					MUSIC.updateOne(REQUEST, sendSocketData)
 			}
 			catch (error) {_400(REQUEST, "unable to " + arguments.callee.name)}
 		}

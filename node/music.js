@@ -88,7 +88,44 @@
 					music.measureTicks = REQUEST.post.musicJSON.measureTicks || {}
 					music.swing        = REQUEST.post.musicJSON.swing || false
 					music.tempoChanges = REQUEST.post.musicJSON.tempoChanges || {}
-					music.parts        = REQUEST.post.musicJSON.parts || {}
+					music.parts        = {}
+
+				// verify part
+					const midiToInstrument = CORE.getAsset("midiToInstrument")
+					const midiInstrumentValues = Object.values(midiToInstrument)
+					const midiInstrumentKeys = Object.keys(midiToInstrument)
+
+					for (let i in REQUEST.post.musicJSON.parts) {
+						const partJSON = REQUEST.post.musicJSON.parts[i]
+						const part = CORE.getSchema("part")
+
+							// info
+								part.name = partJSON.name
+								part.instrument = midiInstrumentValues.includes(partJSON.instrument) ? partJSON.instrument : CONSTANTS.defaultInstrument
+								part.midiChannel = Math.min(CONSTANTS.maximumMidiChannel, Math.max(CONSTANTS.minimumMidiChannel, partJSON.midiChannel))
+								part.midiProgram = Number(Math.min(Number(midiInstrumentKeys[midiInstrumentKeys.length - 1]), Math.max(Number(midiInstrumentKeys[0]), partJSON.midiProgram)))
+								part.synth = partJSON.synth || CONSTANTS.defaultSynth
+								part.staves = partJSON.staves || {"1": {}}
+
+							// measures
+								for (let s in part.staves) {
+									for (let m in music.measureTicks[m]) {
+										if (!part.staves[s][m]) {
+											part.staves[s][m] = CORE.getSchema("measure")
+										}
+										else if (!part.staves[s][m].notes) {
+											part.staves[s][m].notes = {}
+										}
+
+										if (part.staves[s][m].ticks !== music.measureTicks[m]) {
+											part.staves[s][m].ticks = music.measureTicks[m]
+										}
+										
+									}
+								}
+
+						music.parts[part.id] = part
+					}
 
 				// query
 					const query = CORE.getSchema("query")
@@ -434,7 +471,7 @@
 				// new synth
 					const synth = CORE.getSchema("synth")
 						synth.id = REQUEST.post.synth.id || synth.id
-						synth.name = REQUEST.post.synth.name || synth.name
+						synth.name = (REQUEST.post.synth.name || synth.name).replace(/^[a-zA-Z0-9\s]/g, "")
 						synth.polysynth = REQUEST.post.synth.polysynth || synth.polysynth
 						synth.noise = REQUEST.post.synth.noise || synth.noise
 						synth.imag = REQUEST.post.synth.imag || synth.imag
@@ -452,7 +489,7 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["synths." + synth.id] = synth
+						query.document["synths." + synth.name] = synth
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -705,52 +742,6 @@
 											(measureNumber == 1) ? music.measureTicks["1"] : 
 											music.measureTicks[String(measureNumber - 1)]) || CONSTANTS.defaultTicks
 
-				// renumber all higher measures in measureTicks
-					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
-						music.measureTicks[String(m + 1)] = music.measureTicks[String(m)]
-					}
-					music.measureTicks[String(measureNumber)] = newMeasureTicks
-
-				// renumber all higher measures in tempoChanges
-					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
-						if (music.tempoChanges[String(m)]) {
-							music.tempoChanges[String(m + 1)] = music.tempoChanges[String(m)]
-							delete music.tempoChanges[String(m)]
-						}
-					}
-					if (measureNumber == 1) {
-						if (!lastMeasureNumber) {
-							music.tempoChanges["1"] = CONSTANTS.defaultTempo
-						}
-						else {
-							music.tempoChanges["1"] = music.tempoChanges["2"] || CONSTANTS.defaultTempo
-							delete music.tempoChanges["2"]
-						}
-					}
-
-				// renumber all higher measures in all parts
-					for (let p in music.parts) {
-						for (let s in music.parts[p].staves) {
-							const staff = music.parts[p].staves[s]
-							for (let m = lastMeasureNumber; m >= measureNumber; m--) {
-								staff[String(m + 1)] = duplicateObject(staff[String(m)] || CORE.getSchema("measure"))
-							}
-
-							const newMeasure = CORE.getSchema("measure")
-								newMeasure.ticks = newMeasureTicks
-								if (measureNumber == 1) {
-									if (!lastMeasureNumber) {
-										newMeasure.dynamics = CONSTANTS.defaultDynamics
-									}
-									else {
-										newMeasure.dynamics = staff["2"].dynamics || CONSTANTS.defaultDynamics
-										delete staff["2"].dynamics
-									}
-								}
-							staff[String(measureNumber)] = newMeasure
-						}
-					}
-
 				// query
 					const query = CORE.getSchema("query")
 						query.collection = "music"
@@ -759,9 +750,71 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["measureTicks"] = music.measureTicks
-						query.document["tempoChanges"] = music.tempoChanges
-						query.document["parts"] = music.parts
+
+				// renumber all higher measures in measureTicks
+					const updatedMeasureTicks = {}
+					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+						updatedMeasureTicks[String(m + 1)] = music.measureTicks[String(m)]
+						query.document["measureTicks." + String(m + 1)] = music.measureTicks[String(m)]
+					}
+					updatedMeasureTicks[String(measureNumber)] = newMeasureTicks
+					query.document["measureTicks." + String(measureNumber)] = newMeasureTicks
+
+				// renumber all higher measures in tempoChanges
+					const updatedTempoChanges = {}
+					for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+						if (music.tempoChanges[String(m)]) {
+							updatedTempoChanges[String(m + 1)] = music.tempoChanges[String(m)]
+							query.document["tempoChanges." + String(m + 1)] = music.tempoChanges[String(m)]
+							updatedTempoChanges[String(m)] = null
+							query.document["tempoChanges." + String(m)] = null
+						}
+					}
+					if (measureNumber == 1) {
+						if (!lastMeasureNumber) {
+							updatedTempoChanges["1"] = CONSTANTS.defaultTempo
+							query.document["tempoChanges.1"] = CONSTANTS.defaultTempo
+						}
+						else {
+							updatedTempoChanges["1"] = music.tempoChanges["2"] || CONSTANTS.defaultTempo
+							query.document["tempoChanges.1"] = updatedTempoChanges["1"]
+							updatedTempoChanges["2"] = null
+							query.document["tempoChanges.2"] = null
+						}
+					}
+
+				// renumber all higher measures in all parts
+					const updatedParts = {}
+					for (let p in music.parts) {
+						updatedParts[p] = {staves: {}}
+						for (let s in music.parts[p].staves) {
+							updatedParts[p].staves[s] = {}
+							const staff = music.parts[p].staves[s]
+							for (let m = lastMeasureNumber; m >= measureNumber; m--) {
+								updatedParts[p].staves[s][String(m + 1)] = CORE.duplicateObject(music.parts[p].staves[s][String(m)] || CORE.getSchema("measure"))
+								if (!updatedParts[p].staves[s][String(m + 1)].dynamics) {
+									updatedParts[p].staves[s][String(m + 1)].dynamics = null
+								}
+								query.document["parts." + p + ".staves." + s + "." + String(m + 1)] = CORE.duplicateObject(music.parts[p].staves[s][String(m)] || CORE.getSchema("measure"))
+							}
+
+							const newMeasure = CORE.getSchema("measure")
+								newMeasure.ticks = newMeasureTicks
+								newMeasure.dynamics = null
+								if (measureNumber == 1) {
+									if (!lastMeasureNumber) {
+										newMeasure.dynamics = CONSTANTS.defaultDynamics
+									}
+									else {
+										newMeasure.dynamics = music.parts[p].staves[s]["2"].dynamics || CONSTANTS.defaultDynamics
+										updatedParts[p].staves[s]["2"] = {dynamics: null}
+										query.document["parts." + p + ".staves." + s + ".2.dynamics"] = null
+									}
+								}
+							updatedParts[p].staves[s][String(measureNumber)] = newMeasure
+							query.document["parts." + p + ".staves." + s + "." + String(measureNumber)] = newMeasure
+						}
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -775,9 +828,9 @@
 						// updated music
 							const music = results.documents[0]
 							const updatedData = {}
-								updatedData.measureTicks = music.measureTicks
-								updatedData.tempoChanges = music.tempoChanges
-								updatedData.parts = music.parts
+								updatedData.measureTicks = updatedMeasureTicks
+								updatedData.tempoChanges = updatedTempoChanges
+								updatedData.parts = updatedParts
 
 						// inform other composers
 							for (let i in music.composers) {
@@ -803,34 +856,6 @@
 						return
 					}
 
-				// renumber all higher measures in measureTicks
-					for (let m = measureNumber; m < lastMeasureNumber; m++) {
-						music.measureTicks[String(m)] = music.measureTicks[String(m + 1)]
-					}
-					delete music.measureTicks[String(lastMeasureNumber)]
-
-				// renumber all higher measures in tempoChanges
-					if (measureNumber !== 1) {
-						delete music.tempoChanges[String(measureNumber)]
-					}
-					for (let m = measureNumber; m < lastMeasureNumber; m++) {
-						if (music.tempoChanges[String(m + 1)]) {
-							music.tempoChanges[String(m)] = music.tempoChanges[String(m + 1)]
-							delete music.tempoChanges[String(m + 1)]
-						}
-					}
-
-				// renumber all higher measures in all parts
-					for (let p in music.parts) {
-						for (let s in music.parts[p].staves) {
-							const staff = music.parts[p].staves[s]
-							for (let m = measureNumber; m > lastMeasureNumber; m++) {
-								staff[String(m)] = duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
-							}
-							delete staff[String(lastMeasureNumber)]
-						}
-					}
-
 				// query
 					const query = CORE.getSchema("query")
 						query.collection = "music"
@@ -839,9 +864,54 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["measureTicks"] = music.measureTicks
-						query.document["tempoChanges"] = music.tempoChanges
-						query.document["parts"] = music.parts
+
+				// renumber all higher measures in measureTicks
+					const updatedMeasureTicks = {}
+					for (let m = measureNumber; m < lastMeasureNumber; m++) {
+						updatedMeasureTicks[String(m)] = music.measureTicks[String(m + 1)]
+						query.document["measureTicks." + String(m)] = music.measureTicks[String(m + 1)]
+					}
+					updatedMeasureTicks[String(lastMeasureNumber)] = null
+					query.document["measureTicks." + String(lastMeasureNumber)] = null
+
+				// renumber all higher measures in tempoChanges
+					const updatedTempoChanges = {}
+					if (measureNumber !== 1) {
+						updatedTempoChanges[String(measureNumber)] = null
+						query.document["tempoChanges." + String(measureNumber)] = null
+					}
+					for (let m = measureNumber; m < lastMeasureNumber; m++) {
+						if (music.tempoChanges[String(m + 1)]) {
+							updatedTempoChanges[String(m)] = music.tempoChanges[String(m + 1)]
+							query.document["tempoChanges." + String(m)] = music.tempoChanges[String(m + 1)]
+							updatedTempoChanges[String(m + 1)] = null
+							query.document["tempoChanges." + String(m + 1)] = null
+						}
+					}
+
+				// renumber all higher measures in all parts
+					const updatedParts = {}
+					for (let p in music.parts) {
+						updatedParts[p] = {staves: {}}
+						for (let s in music.parts[p].staves) {
+							updatedParts[p].staves[s] = {}
+							const staff = music.parts[p].staves[s]
+							for (let m = measureNumber; m < lastMeasureNumber; m++) {
+								updatedParts[p].staves[s][String(m)] = CORE.duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
+								if (!updatedParts[p].staves[s][String(m)].dynamics) {
+									updatedParts[p].staves[s][String(m)].dynamics = null
+								}
+								query.document["parts." + p + ".staves." + s + "." + String(m)] = CORE.duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
+							}
+							updatedParts[p].staves[s][String(lastMeasureNumber)] = null
+							query.document["parts." + p + ".staves." + s + "." + String(lastMeasureNumber)] = null
+
+							if (measureNumber == 1 && lastMeasureNumber >= 2) {
+								updatedParts[p].staves[s]["1"].dynamics = music.parts[p].staves[s]["1"].dynamics
+								query.document["parts." + p + ".staves." + s + ".1"].dynamics = music.parts[p].staves[s]["1"].dynamics
+							}
+						}
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -855,9 +925,9 @@
 						// updated music
 							const music = results.documents[0]
 							const updatedData = {}
-								updatedData.measureTicks = music.measureTicks
-								updatedData.tempoChanges = music.tempoChanges
-								updatedData.parts = music.parts
+								updatedData.measureTicks = updatedMeasureTicks
+								updatedData.tempoChanges = updatedTempoChanges
+								updatedData.parts = updatedParts
 
 						// inform other composers
 							for (let i in music.composers) {
@@ -892,23 +962,6 @@
 						return
 					}
 
-				// change beats for this measure in measureTicks
-					music.measureTicks[String(measureNumber)] = newTicks
-
-				// change beats for this measure in all parts
-					for (let p in music.parts) {
-						for (let s in music.parts[p].staves) {
-							const measure = music.parts[p].staves[s][String(measureNumber)]
-							measure.ticks = newTicks
-
-							for (let n in measure.notes) {
-								if (Number(n) >= measure.ticks) {
-									delete measure.notes[n]
-								}
-							}
-						}
-					}
-
 				// query
 					const query = CORE.getSchema("query")
 						query.collection = "music"
@@ -917,8 +970,30 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["measureTicks"] = music.measureTicks
-						query.document["parts"] = music.parts
+
+				// change beats for this measure in measureTicks
+					const updatedMeasureTicks = {}
+					updatedMeasureTicks[String(measureNumber)] = newTicks
+					query.document["measureTicks." + String(measureNumber)] = newTicks
+
+				// change beats for this measure in all parts
+					const updatedParts = {}
+					for (let p in music.parts) {
+						updatedParts[p] = {staves: {}}
+						for (let s in music.parts[p].staves) {
+							updatedParts[p].staves[s] = {}
+							const measure = music.parts[p].staves[s][String(measureNumber)]
+							updatedParts[p].staves[s][String(measureNumber)] = {notes: {}, ticks: newTicks}
+							query.document["parts." + p + ".staves." + s + "." + String(measureNumber) + ".ticks"] = newTicks
+
+							for (let n in measure.notes) {
+								if (Number(n) >= measure.ticks) {
+									updatedParts[p].staves[s][String(measureNumber)].notes[n] = null
+									query.document["parts." + p + ".staves." + s + "." + String(measureNumber) + ".notes." + n] = null
+								}
+							}
+						}
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -932,8 +1007,8 @@
 						// updated music
 							const music = results.documents[0]
 							const updatedData = {}
-								updatedData.measureTicks = music.measureTicks
-								updatedData.parts = music.parts
+								updatedData.measureTicks = updatedMeasureTicks
+								updatedData.parts = updatedParts
 
 						// inform other composers
 							for (let i in music.composers) {
@@ -968,19 +1043,6 @@
 						return
 					}
 
-				// change tempo for this measure in tempoChanges
-					if (newTempo) {
-						music.tempoChanges[String(measureNumber)] = newTempo
-					}
-					else {
-						if (measureNumber == 1) {
-							const previousData = {tempoChanges: {"1": music.tempoChanges["1"]}}
-							callback({musicId: musicId, success: false, message: "cannot remove tempo from first measure", music: previousData, recipients: [REQUEST.session.id]})
-							return
-						}
-						delete music.tempoChanges[String(measureNumber)]
-					}
-
 				// query
 					const query = CORE.getSchema("query")
 						query.collection = "music"
@@ -989,7 +1051,22 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["tempoChanges"] = music.tempoChanges
+
+				// change tempo for this measure in tempoChanges
+					const updatedTempoChanges = {}
+					if (newTempo) {
+						updatedTempoChanges[String(measureNumber)] = newTempo
+						query.document["tempoChanges." + String(measureNumber)] = newTempo
+					}
+					else {
+						if (measureNumber == 1) {
+							const previousData = {tempoChanges: {"1": music.tempoChanges["1"]}}
+							callback({musicId: musicId, success: false, message: "cannot remove tempo from first measure", music: previousData, recipients: [REQUEST.session.id]})
+							return
+						}
+						updatedTempoChanges[String(measureNumber)] = null
+						query.document["tempoChanges." + String(measureNumber)] = null
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -1003,8 +1080,407 @@
 						// updated music
 							const music = results.documents[0]
 							const updatedData = {}
-								updatedData.tempoChanges = music.tempoChanges
-								updatedData.parts = music.parts
+								updatedData.tempoChanges = updatedTempoChanges
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updatePartName */
+		module.exports.actions.updatePartName = updatePartName
+		function updatePartName(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get name
+					const name = String(REQUEST.post.name) || null
+					if (!name || CONSTANTS.minimumPartNameLength > name.length || name.length > CONSTANTS.maximumPartNameLength) {
+						const previousData = {parts: {}}
+							previousData.parts[partId] = {name: part.name}
+						callback({musicId: musicId, success: false, message: "part name must be " + CONSTANTS.minimumPartNameLength + " to " + CONSTANTS.maximumPartNameLength + " characters", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId + ".name"] = name
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = {name: name}
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updatePartInstrument */
+		module.exports.actions.updatePartInstrument = updatePartInstrument
+		function updatePartInstrument(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get midiChannel
+					const midiToInstrument = CORE.getAsset("midiToInstrument")
+					const midiProgram = String(REQUEST.post.midiProgram) || null
+					if (!(midiProgram in midiToInstrument)) {
+						const previousData = {parts: {}}
+							previousData.parts[partId] = {midiProgram: part.midiProgram, instrument: part.instrument}
+						callback({musicId: musicId, success: false, message: "unknown MIDI instrument", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// derive instrument
+					const instrument = midiToInstrument[midiProgram] || CONSTANTS.defaultInstrument
+
+				// derive synth
+					const instrumentToSynth = CORE.getAsset("instrumentToSynth")
+					let synth = CONSTANTS.defaultSynth
+					for (let i in instrumentToSynth) {
+						if (instrument.toLowerCase().includes(i)) {
+							synth = instrumentToSynth[i]
+							break
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId + ".midiProgram"] = midiProgram
+						query.document["parts." + partId + ".instrument"] = instrument
+						query.document["parts." + partId + ".synth"] = synth
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = {midiProgram: midiProgram, instrument: instrument, synth: synth}
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updatePartSynth */
+		module.exports.actions.updatePartSynth = updatePartSynth
+		function updatePartSynth(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get synth
+					const synth = String(REQUEST.post.synth) || null
+					if (!synth) {
+						const previousData = {parts: {}}
+							previousData.parts[partId] = {synth: part.synth}
+						callback({musicId: musicId, success: false, message: "unknown synth", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId + ".synth"] = synth
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = {synth: synth}
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* deletePart */
+		module.exports.actions.deletePart = deletePart
+		function deletePart(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId] = null
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = null
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* addPart */
+		module.exports.actions.addPart = addPart
+		function addPart(REQUEST, music, composer, callback) {
+			try {
+				// get existing channels
+					const usedChannels = []
+					for (let p in music.parts) {
+						usedChannels.push(music.parts[p].midiChannel)
+					}
+					usedChannels.sort()
+					let nextAvailableChannel = CONSTANTS.minimumMidiChannel
+					while (usedChannels.includes(nextAvailableChannel)) {
+						nextAvailableChannel++
+					}
+					if (nextAvailableChannel > CONSTANTS.maximumMidiChannel) {
+						nextAvailableChannel = CONSTANTS.defaultMidiChannel
+					}
+
+				// new
+					const part = CORE.getSchema("part")
+						part.name = "unnamed part"
+						part.instrument = CONSTANTS.defaultInstrument
+						part.midiChannel = nextAvailableChannel
+						part.midiProgram = CONSTANTS.defaultMidiProgram
+						part.synth = CONSTANTS.defaultSynth
+
+				// measures
+					const measures = part.staves["1"]
+					for (let m in music.measureTicks) {
+						measures[m] = CORE.getSchema("measure")
+						measures[m].ticks = music.measureTicks[m]
+
+						if (m == "1") {
+							measures[m].dynamics = CONSTANTS.defaultDynamics
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + part.id] = part
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[part.id] = part
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updatePartMeasureDynamics */
+		module.exports.actions.updatePartMeasureDynamics = updatePartMeasureDynamics
+		function updatePartMeasureDynamics(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change dynamics for measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// get dynamic
+					let dynamic = REQUEST.post.dynamic
+					if (dynamic == "-") {
+						if (measureNumber == "1") {
+							const previousData = {parts: {}}
+								previousData.parts[partId] = {staves: {}}
+								for (let s in part.staves) {
+									previousData.parts[partId].staves[s] = {}
+									previousData.parts[partId].staves[s][measureNumber] = {dynamics: part.staves[s][measureNumber].dynamics}
+								}
+							callback({musicId: musicId, success: false, message: "cannot remove dynamics from measure 1", music: previousData, recipients: [REQUEST.session.id]})
+							return
+						}
+					}
+					else {
+						const dynamicToNumber = CORE.getAsset("dynamicToNumber")
+						if (isNaN(dynamic) || dynamic < 0 || dynamic > dynamicToNumber[Object.keys(dynamicToNumber)[0]]) {
+							callback({musicId: musicId, success: false, message: "unknown dynamic for " + measureNumber, recipients: [REQUEST.session.id]})
+							return
+						}
+						dynamic = Number(dynamic)
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+
+				// update this measure
+					const updatedParts = {}
+						updatedParts[partId] = {staves: {}}
+					for (let s in part.staves) {
+						updatedParts[partId].staves[s] = {}
+						updatedParts[partId].staves[s][measureNumber] = {dynamics: (dynamic == "-" ? null : dynamic)}
+						query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".dynamics"] = (dynamic == "-" ? null : dynamic)
+					}
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = updatedParts
 
 						// inform other composers
 							for (let i in music.composers) {

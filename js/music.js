@@ -46,7 +46,7 @@
 	/* constants */
 		const CONSTANTS = {
 			pingLoop: 1000 * 60,
-			ticksPerBeat: 24,
+			ticksPerBeat: 24
 		}
 
 	/* state */
@@ -88,9 +88,10 @@
 				measures: {},
 				measuresAdd: document.querySelector("#content-add-measure")
 			},
-			partsContainer: document.querySelector("#parts"),
+			partsInfoContainer: document.querySelector("#content-left-parts"),
+			partsMeasuresContainer: document.querySelector("#content-right"),
 			parts: {},
-			data: document.body.querySelector("#data")
+			partsAdd: document.querySelector("#content-add-part")
 		}
 
 /*** tools ***/
@@ -314,9 +315,6 @@
 					if (musicJSON.parts !== undefined) {
 						receiveParts(musicJSON.parts)
 					}
-
-				// display
-					ELEMENTS.data.innerHTML = JSON.stringify(STATE.music, null, 2)
 			} catch (error) {console.log(error)}
 		}
 
@@ -514,10 +512,10 @@
 
 						// find in parts
 							for (let p in ELEMENTS.parts) {
-								const customSynths = ELEMENTS.parts[p].synthsSelect.custom
+								const customSynths = ELEMENTS.parts[p].synthCustom
 								if (!customSynths.querySelector("[value='" + synthName + "']")) {
 									const synthOption = document.createElement("option")
-										synthOption.value = s
+										synthOption.value = synthName
 										synthOption.innerText = synthName
 									customSynths.appendChild(synthOption)
 								}
@@ -574,30 +572,25 @@
 	/* receiveMeasureTicks */
 		function receiveMeasureTicks(measureTicks) {
 			try {
-				// set state
-					STATE.music.measureTicks = measureTicks
+				// loop through measures
+					for (let m in measureTicks) {
+						// delete
+							if (measureTicks[m] === null) {
+								delete STATE.music.measureTicks[m]
+								ELEMENTS.header.measures[m].element.remove()
+								delete ELEMENTS.header.measures[m]
+								continue
+							}
 
-				// upsert measures
-					for (let m in STATE.music.measureTicks) {
-						if (!ELEMENTS.header.measures[m]) {
-							buildMeasure(m, STATE.music.measureTicks[m])
-						}
-						else {
-							ELEMENTS.header.measures[m].measure.style.width = "calc(var(--tick-width) * " + STATE.music.measureTicks[m] + ")";
-						}
-						ELEMENTS.header.measures[m].beatsInput.value = Math.floor(STATE.music.measureTicks[m] / CONSTANTS.ticksPerBeat)
+						// upsert
+							STATE.music.measureTicks[m] = measureTicks[m]
+							if (!ELEMENTS.header.measures[m]) {
+								ELEMENTS.header.measures[m] = buildMeasure(m)
+							}
+							
+							ELEMENTS.header.measures[m].element.style.width = "calc(var(--tick-width) * " + measureTicks[m] + " + var(--border-size))";
+							ELEMENTS.header.measures[m].beatsInput.value = Math.floor(measureTicks[m] / CONSTANTS.ticksPerBeat)
 					}
-
-				// deleted measures
-					const lastMeasureNumber = Object.keys(STATE.music.measureTicks).length
-					for (let m in ELEMENTS.header.measures) {
-						if (m > lastMeasureNumber) {
-							ELEMENTS.header.measures[m].measure.remove()
-							delete ELEMENTS.header.measures[m]
-						}
-					}
-
-				// add & remove for parts too!!! ???
 
 				// set total measure count
 					const measureCount = Object.keys(STATE.music.measureTicks).length
@@ -612,32 +605,34 @@
 	/* receiveTempoChanges */
 		function receiveTempoChanges(tempoChanges) {
 			try {
-				// set state
-					STATE.music.tempoChanges = tempoChanges
+				// loop through changes
+					for (let m in tempoChanges) {
+						// delete
+							if (tempoChanges[m] === null) {
+								delete STATE.music.tempoChanges[m]
+								if (ELEMENTS.header.measures[m]) {
+									ELEMENTS.header.measures[m].tempoInput.value = 0
+									ELEMENTS.header.measures[m].tempoInput.setAttribute("value-present", false)
+								}
+								continue
+							}
 
-				// override measures
-					for (let m in ELEMENTS.header.measures) {
-						if (STATE.music.tempoChanges[m]) {
-							ELEMENTS.header.measures[m].tempoInput.value = STATE.music.tempoChanges[m]
+						// upsert
+							STATE.music.tempoChanges[m] = tempoChanges[m]
+							ELEMENTS.header.measures[m].tempoInput.value = tempoChanges[m]
 							ELEMENTS.header.measures[m].tempoInput.setAttribute("value-present", true)
-						}
-						else {
-							ELEMENTS.header.measures[m].tempoInput.value = 0
-							ELEMENTS.header.measures[m].tempoInput.setAttribute("value-present", false)
-						}
 					}
 			} catch (error) {console.log(error)}
 		}
 
 	/* buildMeasure */
-		function buildMeasure(m, ticks) {
+		function buildMeasure(m) {
 			try {
 				// measure
 					const measure = document.createElement("div")
 						measure.className = "music-measure"
 						measure.id = "music-measure-" + m
 						measure.setAttribute("measure", m)
-						measure.style.width = "calc(var(--tick-width) * " + ticks + ")"
 					ELEMENTS.header.measuresContainer.appendChild(measure)
 
 				// insert measure before
@@ -670,6 +665,7 @@
 						beatsInput.step = "1"
 						beatsInput.placeholder = "♩"
 						beatsInput.title = "measure " + m + " beats"
+						beatsInput.value = "0"
 						beatsInput.addEventListener(TRIGGERS.change, updateBeats)
 					measure.appendChild(beatsInput)
 
@@ -681,16 +677,18 @@
 						tempoInput.step = "1"
 						tempoInput.placeholder = "BPM"
 						tempoInput.title = "measure " + m + " tempo"
+						tempoInput.value = "0"
 						tempoInput.addEventListener(TRIGGERS.change, updateTempo)
+						tempoInput.setAttribute("value-present", false)
 					measure.appendChild(tempoInput)
 
 				// save
-					ELEMENTS.header.measures[m] = {
-						measure: measure,
+					return {
+						element: measure,
 						beatsInput: beatsInput,
 						tempoInput: tempoInput,
-						delete: deleteButton,
-						insert: insertButton
+						deleteButton: deleteButton,
+						insertButton: insertButton
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -815,9 +813,500 @@
 
 /*** parts ***/
 	/* receiveParts */
-		function receiveParts(parts) {
+		function receiveParts(partsJSON) {
 			try {
-				// ???
+				// loop through
+					for (let id in partsJSON) {
+						const partJSON = partsJSON[id]
+
+						// delete
+							if (partJSON === null) {
+								delete STATE.music.parts[id]
+								ELEMENTS.parts[id].infoContainer.remove()
+								ELEMENTS.parts[id].measuresContainer.remove()
+								delete ELEMENTS.parts[id]
+								continue
+							}
+
+						// upsert
+							if (!ELEMENTS.parts[id]) {
+								STATE.music.parts[id] = {}
+								ELEMENTS.parts[id] = buildPart(id)
+							}
+							
+							receivePart(id, partJSON)
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* receivePart */
+		function receivePart(partId, partJSON) {
+			try {
+				// get part
+					const partObject = ELEMENTS.parts[partId]
+
+				// info
+					if (partJSON.name) {
+						STATE.music.parts[partId].name = partJSON.name
+						partObject.nameInput.value = partJSON.name
+					}
+					if (partJSON.midiChannel) {
+						STATE.music.parts[partId].midiChannel = partJSON.midiChannel
+					}
+					if (partJSON.instrument || partJSON.midiProgram) {
+						STATE.music.parts[partId].instrument = partJSON.instrument
+						STATE.music.parts[partId].midiProgram = partJSON.midiProgram
+						partObject.instrumentSelect.value = partJSON.midiProgram
+					}
+					if (partJSON.synth) {
+						STATE.music.parts[partId].synth = partJSON.synth
+						partObject.synthSelect.value = partJSON.synth
+					}
+
+				// measures
+					if (!STATE.music.parts[partId].staves) {
+						STATE.music.parts[partId].staves = {}
+					}
+					for (let s in partJSON.staves) { // all parts are 1 staff
+						if (!STATE.music.parts[partId].staves[s]) {
+							STATE.music.parts[partId].staves[s] = {}
+						}
+
+						const measuresJSON = partJSON.staves[s]
+						for (let m in measuresJSON) {
+							// delete
+								if (measuresJSON[m] === null) {
+									delete STATE.music.parts[partId].staves[s][m]
+									partObject.measures[m].element.remove()
+									delete partObject.measures[m]
+									continue
+								}
+
+							// upsert
+								if (!partObject.measures[m]) {
+									STATE.music.parts[partId].staves[s][m] = {ticks: 0, notes: {}}
+									partObject.measures[m] = buildPartMeasure(partObject.measuresContainer, m)
+								}
+
+								receivePartMeasure(partObject.measures[m], STATE.music.parts[partId].staves[s][m], measuresJSON[m])
+						}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* receivePartMeasure */
+		function receivePartMeasure(measureObject, measureState, measureJSON) {
+			try {
+				// ticks
+					if (measureJSON.ticks !== undefined) {
+						measureState.ticks = measureJSON.ticks
+						measureObject.element.style.width = "calc(var(--tick-width) * " + measureJSON.ticks + " + var(--border-size))"
+					}
+
+				// dynamics
+					if (measureJSON.dynamics === null) {
+						delete measureState.dynamics
+						measureObject.dynamicsInput.value = "-"
+						measureObject.dynamicsInput.setAttribute("value-present", false)
+					}
+					else if (measureJSON.dynamics !== undefined) {
+						measureState.dynamics = measureJSON.dynamics
+						measureObject.dynamicsInput.value = measureJSON.dynamics
+						measureObject.dynamicsInput.setAttribute("value-present", true)
+					}
+				
+				// notes // ???
+					if (measureJSON.notes === null) {
+						measureState.notes = {}
+					}
+					else if (measureJSON.notes !== undefined) {
+						measureState.notes = measureJSON.notes
+					}
+					measureObject.notesContainer.innerHTML = ""
+					measureObject.notesContainer.innerHTML = "ticks: " + measureState.ticks + "<br>notes: " + JSON.stringify(measureState.notes) + "<br>" + (measureState.dynamics ? ("dynamics: " + measureState.dynamics) : "")
+			} catch (error) {console.log(error)}
+		}
+
+	/* buildPart */
+		function buildPart(partId) {
+			try {
+				// info
+					const infoContainer = document.createElement("div")
+						infoContainer.className = "part-info"
+						infoContainer.id = "part-info-" + partId
+						infoContainer.setAttribute("partid", partId)
+					ELEMENTS.partsInfoContainer.appendChild(infoContainer)
+
+					// delete
+						const partDelete = document.createElement("button")
+							partDelete.className = "part-info-delete"
+							partDelete.innerHTML = "&times;&nbsp;delete"
+							partDelete.title = "permanently delete part from score"
+							partDelete.addEventListener(TRIGGERS.click, deletePart)
+						infoContainer.appendChild(partDelete)
+
+					// name
+						const partNameLabel = document.createElement("label")
+							partNameLabel.className = "part-info-label"
+						infoContainer.appendChild(partNameLabel)
+
+							const partNameText = document.createElement("span")
+								partNameText.innerText = "name"
+							partNameLabel.appendChild(partNameText)
+
+							const partName = document.createElement("input")
+								partName.className = "part-info-name"
+								partName.type = "text"
+								partName.placeholder = "part name"
+								partName.title = "part name"
+								partName.addEventListener(TRIGGERS.change, updatePartName)
+							partNameLabel.appendChild(partName)
+
+					// instrument
+						const partInstrumentLabel = document.createElement("label")
+							partInstrumentLabel.className = "part-info-label"
+						infoContainer.appendChild(partInstrumentLabel)
+
+							const partInstrumentText = document.createElement("span")
+								partInstrumentText.innerText = "midi"
+							partInstrumentLabel.appendChild(partInstrumentText)
+
+							const partInstrument = document.createElement("select")
+								partInstrument.className = "part-info-instrument"
+								partInstrument.title = "MIDI instrument"
+								partInstrument.addEventListener(TRIGGERS.change, updatePartInstrument)
+							partInstrumentLabel.appendChild(partInstrument)
+
+								const midiProgramKeys = Object.keys(MUSICXML_J.constants.midiToInstrument)
+								for (let k in midiProgramKeys) {
+									const option = document.createElement("option")
+										option.innerText = MUSICXML_J.constants.midiToInstrument[midiProgramKeys[k]]
+										option.value = midiProgramKeys[k]
+									partInstrument.appendChild(option)
+								}
+
+					// synth
+						const partSynthLabel = document.createElement("label")
+							partSynthLabel.className = "part-info-label"
+						infoContainer.appendChild(partSynthLabel)
+
+							const partSynthText = document.createElement("span")
+								partSynthText.innerText = "synth"
+							partSynthLabel.appendChild(partSynthText)
+
+							const partSynth = document.createElement("select")
+								partSynth.className = "part-info-synth"
+								partSynth.title = "synth"
+								partSynth.addEventListener(TRIGGERS.change, updatePartSynth)
+							partSynthLabel.appendChild(partSynth)
+
+							// simple
+								const simpleSynths = AUDIO_J.getInstruments("simple")
+								const simpleGroup = document.createElement("optgroup")
+									simpleGroup.label = "[simple]"
+								partSynth.appendChild(simpleGroup)
+								
+								for (let i in simpleSynths) {
+									const option = document.createElement("option")
+										option.innerText = simpleSynths[i]
+										option.value = simpleSynths[i]
+									simpleGroup.appendChild(option)
+								}
+
+							// default
+								const defaultSynths = AUDIO_J.getInstruments("default")
+								const defaultGroup = document.createElement("optgroup")
+									defaultGroup.label = "[default]"
+								partSynth.appendChild(defaultGroup)
+								
+								for (let i in defaultSynths) {
+									const option = document.createElement("option")
+										option.innerText = defaultSynths[i]
+										option.value = defaultSynths[i]
+									defaultGroup.appendChild(option)
+								}
+
+							// custom
+								const customSynths = Object.keys(STATE.music.synths) || []
+								const customGroup = document.createElement("optgroup")
+									customGroup.label = "[custom]"
+								partSynth.appendChild(customGroup)
+								
+								for (let i in customSynths) {
+									const option = document.createElement("option")
+										option.innerText = customSynths[i]
+										option.value = customSynths[i]
+									customGroup.appendChild(option)
+								}
+
+					// volume
+						const partVolumeLabel = document.createElement("label")
+							partVolumeLabel.className = "part-info-label part-info-volume-label"
+						infoContainer.appendChild(partVolumeLabel)
+
+							const partVolumeText = document.createElement("span")
+								partVolumeText.innerHTML = "&#x1F508;"
+							partVolumeLabel.appendChild(partVolumeText)
+
+							const partVolume = document.createElement("input")
+								partVolume.className = "part-info-volume"
+								partVolume.type = "range"
+								partVolume.min = "0"
+								partVolume.max = "1"
+								partVolume.step = "0.05"
+								partVolume.value = "1"
+								partVolume.title = "playback volume"
+								partVolume.addEventListener(TRIGGERS.input, setPartVolume)
+							partVolumeLabel.appendChild(partVolume)
+
+				// measures
+					const measuresContainer = document.createElement("div")
+						measuresContainer.className = "part-measures"
+						measuresContainer.setAttribute("partid", partId)
+					ELEMENTS.partsMeasuresContainer.appendChild(measuresContainer)
+
+				// object
+					return {
+						infoContainer: infoContainer,
+						volumeInput: partVolume,
+						nameInput: partName,
+						instrumentSelect: partInstrument,
+						synthSelect: partSynth,
+						synthCustom: customGroup,
+						deleteButton: partDelete,
+						measuresContainer: measuresContainer,
+						measures: {}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* buildPartMeasure */
+		function buildPartMeasure(measuresContainer, measureNumber) {
+			try {
+				// measure
+					const measure = document.createElement("div")
+						measure.className = "part-measure"
+						measure.setAttribute("measure", measureNumber)
+					measuresContainer.appendChild(measure)
+
+				// notes container
+					const notesContainer = document.createElement("div")
+						notesContainer.className = "part-measure-notes"
+					measure.appendChild(notesContainer)
+
+				// dynamics input
+					const dynamicsInput = document.createElement("select")
+						dynamicsInput.className = "part-measure-dynamics"
+						dynamicsInput.title = "dynamics"
+						dynamicsInput.value = "-"
+						dynamicsInput.addEventListener(TRIGGERS.change, updatePartMeasureDynamics)
+						dynamicsInput.setAttribute("value-present", false)
+					measure.appendChild(dynamicsInput)
+
+						const nullOption = document.createElement("option")
+							nullOption.innerText = "-"
+							nullOption.value = "-"
+						dynamicsInput.appendChild(nullOption)
+
+						let volumeCount = Object.keys(MUSICXML_J.constants.dynamicToNumber).length - 1
+						for (let i in MUSICXML_J.constants.dynamicToNumber) {
+							const option = document.createElement("option")
+								option.innerText = volumeCount + "-" + i
+								option.value = MUSICXML_J.constants.dynamicToNumber[i]
+							dynamicsInput.appendChild(option)
+							volumeCount--
+						}
+
+				// object
+					return {
+						element: measure,
+						dynamicsInput: dynamicsInput,
+						notesContainer: notesContainer,
+						notes: {}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* updatePartName */
+		function updatePartName(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-info").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// get name
+					const name = event.target.value.trim() || ""
+					if (!name || !name.length) {
+						event.target.value = STATE.music.parts[partId].name
+						showToast({success: false, message: "cannot remove instrument name"})
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "updatePartName",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId,
+						name: name
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* updatePartInstrument */
+		function updatePartInstrument(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-info").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// get instrument
+					const midiProgram = event.target.value
+					if (!(midiProgram in MUSICXML_J.constants.midiToInstrument)) {
+						event.target.value = STATE.music.parts[partId].midiProgram
+						showToast({success: false, message: "unknown instrument"})
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "updatePartInstrument",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId,
+						midiProgram: midiProgram
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* updatePartSynth */
+		function updatePartSynth(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-info").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// get synth
+					const synth = event.target.value
+					if (!synth || !synth.length) {
+						event.target.value = STATE.music.parts[partId].synth
+						showToast({success: false, message: "unknown synth"})
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "updatePartSynth",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId,
+						synth: synth
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* deletePart */
+		function deletePart(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-info").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "deletePart",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* addPart */
+		ELEMENTS.partsAdd.addEventListener(TRIGGERS.click, addPart)
+		function addPart(event) {
+			try {
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "addPart",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* updatePartMeasureDynamics */
+		function updatePartMeasureDynamics(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-measures").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// get measure
+					const measureNumber = Number(event.target.closest(".part-measure").getAttribute("measure"))
+					if (!measureNumber) {
+						showToast({success: false, message: "unable to find measure"})
+						return
+					}
+
+				// get dynamic
+					let dynamic = event.target.value
+					if (dynamic !== "-") {
+						dynamic = Number(dynamic)
+						if (isNaN(dynamic) || dynamic < 0 || dynamic > MUSICXML_J.constants.dynamicToNumber[Object.keys(MUSICXML_J.constants.dynamicToNumber)[0]]) {
+							showToast({success: false, message: "invalid dynamic"})
+							return
+						}
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "updatePartMeasureDynamics",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: partId,
+						measure: measureNumber,
+						dynamic: dynamic
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+/*** playback ***/
+	/* setPartVolume */
+		function setPartVolume(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-info").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// no audio_j
+					if (!AUDIO_J.audio || !AUDIO_J.instruments[partId]) {
+						return
+					}
+
+				// get volume
+					const volume = Math.min(1, Math.max(0, Number(event.target.value)))
+
+				// set instrument
+					AUDIO_J.instruments[partId].setParameters({power: volume ? 1 : 0, volume: volume})
 			} catch (error) {console.log(error)}
 		}
 

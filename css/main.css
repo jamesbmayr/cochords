@@ -121,7 +121,7 @@
 			text-align: center;
 		}
 
-		input:focus {
+		input:focus, input:hover {
 			box-shadow: 0 0 0 var(--border-size) var(--light-blue) !important;
 		}
 
@@ -206,9 +206,8 @@
 			cursor: pointer;
 			line-height: 1;
 			vertical-align: top;
-			text-transform: uppercase;
 			-webkit-appearance: none;
-			box-shadow: 0 0 0 var(--border-size) var(--dark-gray);
+			transition: var(--transition-time);
 		}
 
 		select:not([disabled]):hover, select:not([disabled]):focus {

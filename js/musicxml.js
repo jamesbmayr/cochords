@@ -2,6 +2,23 @@
 	/* musicXML constants */
 		const MUSICXML_J = {
 			constants: {
+				defaultMidiChannel: 1,
+				defaultMidiProgram: 1,
+				defaultInstrument: "Acoustic Grand Piano",
+				defaultSynth: "keystone",
+				dynamicToNumber: {
+					"ffff": 1.41,
+					"fff": 1.27,
+					"ff": 1.12,
+					"f": 0.98,
+					"mf": 0.83,
+					"mp": 0.69,
+					"p": 0.54,
+					"pp": 0.40,
+					"ppp": 0.26,
+					"pppp": 0.11,
+					"n": 0
+				},
 				numberToBeat: {
 					"1": "whole",
 					"2": "half",
@@ -212,8 +229,8 @@
 					"B9": 131,
 					"C10":132
 				},
-				ensembleInstrumentDefault: "square",
 				midiToInstrument: {
+					"0": "Percussion",
 					"1": "Acoustic Grand Piano",
 					"2": "Bright Acoustic Piano",
 					"3": "Electric Grand Piano",
@@ -344,7 +361,9 @@
 					"128": "Gunshot",
 				},
 				instrumentToSynth: {
+					"electric piano": "zipboard",
 					"piano": "keystone",
+					"keys": "keystone",
 					"harpsichord": "sharpsichord",
 					"clavinet": "zipboard",
 					"celesta": "bitbottle",
@@ -595,7 +614,7 @@
 					}
 
 				// default
-					return MUSICXML_J.constants.ensembleInstrumentDefault
+					return MUSICXML_J.constants.defaultSynth
 			} catch (error) {console.log(error)}
 		}
 
@@ -603,39 +622,11 @@
 		MUSICXML_J.getDynamicType = getDynamicType
 		function getDynamicType(dynamicAmount) {
 			try {
-				// multiply by 100
-					dynamicAmount *= 100
-
-				// ranges
-					if (dynamicAmount >= 141) {
-						return "ffff"
-					}
-					if (dynamicAmount >= 127) {
-						return "fff"
-					}
-					if (dynamicAmount >= 112) {
-						return "ff"
-					}
-					if (dynamicAmount >= 98) {
-						return "f"
-					}
-					if (dynamicAmount >= 83) {
-						return "mf"
-					}
-					if (dynamicAmount >= 69) {
-						return "mp"
-					}
-					if (dynamicAmount >= 54) {
-						return "p"
-					}
-					if (dynamicAmount >= 40) {
-						return "pp"
-					}
-					if (dynamicAmount >= 26) {
-						return "ppp"
-					}
-					if (dynamicAmount >= 11) {
-						return "pppp"
+				// loop through all
+					for (let i in MUSICXML_J.constants.dynamicToNumber) {
+						if (dynamicAmount > MUSICXML_J.constants.dynamicToNumber[i]) {
+							return i
+						}
 					}
 
 				// still here
@@ -816,9 +807,9 @@
 					const instrumentXML = musicXML.querySelector("score-part#" + partId)
 					if (instrumentXML) {
 						partJSON.name = (instrumentXML.querySelector("part-name") || {}).innerHTML || ""
-						partJSON.instrument = (instrumentXML.querySelector("instrument-sound") || instrumentXML.querySelector("virtual-name") || instrumentXML.querySelector("instrument-name") || {}).innerHTML || ""
-						partJSON.midiChannel = Number((instrumentXML.querySelector("midi-channel") || {}).innerHTML || 0)
-						partJSON.midiProgram = Number((instrumentXML.querySelector("midi-program") || {}).innerHTML || 0)
+						partJSON.instrument = (instrumentXML.querySelector("instrument-sound") || instrumentXML.querySelector("virtual-name") || instrumentXML.querySelector("instrument-name") || {}).innerHTML || MUSICXML_J.constants.defaultInstrument
+						partJSON.midiChannel = Number((instrumentXML.querySelector("midi-channel") || {}).innerHTML || MUSICXML_J.constants.defaultMidiChannel)
+						partJSON.midiProgram = Number((instrumentXML.querySelector("midi-program") || {}).innerHTML)
 						partJSON.synth = getSynthType(partJSON.name || partJSON.instrument)
 						partJSON.staves = {}
 						partJSON.currentTicksPerMeasure = 0
@@ -963,7 +954,9 @@
 
 				// dynamic change
 					const dynamicDirections = Array.from(measureXML.querySelectorAll("sound[dynamics]")) || []
-					const dynamicChange = dynamicDirections.length ? Number(dynamicDirections[dynamicDirections.length - 1].getAttribute("dynamics")) / 100 || 0 : null
+					const dynamicPhrases = Array.from(measureXML.querySelectorAll("dynamics")) || []
+					const dynamicChange = dynamicDirections.length ? (Number(dynamicDirections[dynamicDirections.length - 1].getAttribute("dynamics")) / 100 || 0) : 
+										dynamicPhrases.length ? dynamicToNumber[dynamicPhrases[dynamicPhrases.length - 1].innerHTML.toLowerCase().replace(/^[a-z]/g, "")] : null
 
 				// tempo change
 					const tempoDirection = measureXML.querySelector("sound[tempo]") || null
@@ -1008,8 +1001,10 @@
 				// parts
 					const partsList = []
 					const parts = []
+					let partIndex = 0
 					for (let i in musicJSON.parts) {
-						const output = buildMusicXMLPart(musicJSON, i)
+						partIndex++
+						const output = buildMusicXMLPart(musicJSON, i, partIndex)
 							partsList.push(output[0])
 							parts.push(output[1])
 					}
@@ -1052,14 +1047,14 @@
 
 	/* buildMusicXMLPart */
 		MUSICXML_J.buildMusicXMLPart = buildMusicXMLPart
-		function buildMusicXMLPart(musicJSON, partId) {
+		function buildMusicXMLPart(musicJSON, partId, partIndex) {
 			try {
 				// get part
-					const partJSON = musicJSON.parts[partId]
+					const partJSON = musicJSON.paPrts[partIndex]
 
 				// parts list
 					// start
-						let partsListXML = `\t\t<score-part id="` + partId + `">\n`
+						let partsListXML = `\t\t<score-part id="P` + partIndex + `">\n`
 
 					// name
 						partsListXML += `\t\t\t<part-name>` + partJSON.name + `</part-name>\n`
@@ -1068,16 +1063,16 @@
 						partsListXML += `\t\t\t<part-abbreviation-display>\n\t\t\t\t<display-text>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</display-text>\n\t\t\t</part-abbreviation-display>\n`
 
 					// instrument
-						partsListXML += `\t\t\t<score-instrument id="` + partId + `-I1">\n\t\t\t\t<instrument-name>` + (partJSON.instrument || CONSTANTS.midiToInstrument(partJSON.midiProgram)) + `</instrument-name>\n\t\t\t</score-instrument>\n`
-						partsListXML += `\t\t\t<midi-device id="` + partId + `-I1"></midi-device>\n`
-						partsListXML += `\t\t\t<midi-instrument id="` + partId + `-I1">\n\t\t\t\t<midi-channel>` + partJSON.midiChannel + `</midi-channel>\n\t\t\t\t<midi-program>` + partJSON.midiProgram + `</midi-program>\n\t\t\t\t<volume>80</volume>\n\t\t\t\t<pan>0</pan>\n\t\t\t</midi-instrument>\n`
+						partsListXML += `\t\t\t<score-instrument id="P` + partIndex + `-I` + partIndex + `">\n\t\t\t\t<instrument-name>` + (partJSON.instrument || MUSICXML_J.constants.midiToInstrument[partJSON.midiProgram]) + `</instrument-name>\n\t\t\t</score-instrument>\n`
+						partsListXML += `\t\t\t<midi-device id="P` + partIndex + `-I` + partIndex + `"></midi-device>\n`
+						partsListXML += `\t\t\t<midi-instrument id="P` + partIndex + `-I` + partIndex + `">\n\t\t\t\t<midi-channel>` + partJSON.midiChannel + `</midi-channel>\n\t\t\t\t<midi-program>` + partJSON.midiProgram + `</midi-program>\n\t\t\t\t<volume>80</volume>\n\t\t\t\t<pan>0</pan>\n\t\t\t</midi-instrument>\n`
 
 					// end
 						partsListXML += `\t\t</score-part>\n`
 
 				// measures
 					// start
-						let partXML = `\t<part id="` + partId + `">\n`
+						let partXML = `\t<part id="P` + partIndex + `">\n`
 
 					// loop through
 						const measures = []
