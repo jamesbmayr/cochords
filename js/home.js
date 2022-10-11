@@ -238,12 +238,12 @@
 					}
 
 				// history
-					if (storageData.music) {
+					if (storageData.music && storageData.music.length) {
 						for (let i in storageData.music) {
 							createMusicButton(storageData.music[i])
 						}
 
-						ELEMENTS.previousMusicNone.remove()
+						ELEMENTS.previousMusicNone.setAttribute("invisible", true)
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -262,7 +262,48 @@
 						buttonElement.id = musicInfo.id
 						buttonElement.value = musicInfo.id
 						buttonElement.innerText = musicInfo.title
+						buttonElement.title = "load previous music"
 						buttonElement.addEventListener(TRIGGERS.click, selectMusic)
 					ELEMENTS.previousMusicSection.appendChild(buttonElement)
+
+					const deleteButton = document.createElement("button")
+						deleteButton.className = "previous-music-delete"
+						deleteButton.value = musicInfo.id
+						deleteButton.innerHTML = "&times;"
+						deleteButton.title = "remove from history"
+						deleteButton.addEventListener(TRIGGERS.click, forgetMusic)
+					ELEMENTS.previousMusicSection.appendChild(deleteButton)
+			} catch (error) {console.log(error)}
+		}
+
+	/* forgetMusic */
+		function forgetMusic(event) {
+			try {
+				// get id
+					const musicId = event.target.value
+
+				// remove buttons
+					event.target.remove()
+					ELEMENTS.previousMusicSection.querySelector(".previous-music-button[value='" + musicId + "']").remove()
+
+				// no more?
+					if (!Array.from(ELEMENTS.previousMusicSection.querySelectorAll(".previous-music-button")).length) {
+						ELEMENTS.previousMusicNone.removeAttribute("invisible")
+					}
+
+				// localstorage
+					if (!window.localStorage || !window.localStorage.cochords) {
+						return
+					}
+					const storageData = JSON.parse(window.localStorage.cochords)
+
+				// remove and replace
+					if (storageData.music) {
+						storageData.music = storageData.music.filter(function(item) {
+							return item.id !== musicId
+						})
+					}
+
+					window.localStorage.cochords = JSON.stringify(storageData)
 			} catch (error) {console.log(error)}
 		}

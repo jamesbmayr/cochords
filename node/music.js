@@ -109,7 +109,7 @@
 
 							// measures
 								for (let s in part.staves) {
-									for (let m in music.measureTicks[m]) {
+									for (let m in music.measureTicks) {
 										if (!part.staves[s][m]) {
 											part.staves[s][m] = CORE.getSchema("measure")
 										}
@@ -1608,6 +1608,335 @@
 						updatedParts[partId].staves[s] = {}
 						updatedParts[partId].staves[s][measureNumber] = {dynamics: (dynamic == "-" ? null : dynamic)}
 						query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".dynamics"] = (dynamic == "-" ? null : dynamic)
+					}
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = updatedParts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* addPartMeasureNote */
+		module.exports.actions.addPartMeasureNote = addPartMeasureNote
+		function addPartMeasureNote(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {staves: {}}
+						for (let s in part.staves) {
+							previousData.parts[partId].staves[s] = {}
+							previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+						}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// impossible note
+					let newNote = REQUEST.post.note
+					if (!newNote || !newNote.pitch || !newNote.duration) {
+						callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+
+				// find measure
+					const updatedParts = {}
+						updatedParts[partId] = {staves: {}}
+					for (let s in part.staves) {
+						updatedParts[partId].staves[s] = {}
+						updatedParts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+						
+						if (!updatedParts[partId].staves[s][measureNumber].notes[String(newNote.tick)]) {
+							updatedParts[partId].staves[s][measureNumber].notes[String(newNote.tick)] = {}
+							updatedParts[partId].staves[s][measureNumber].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+							query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + newNote.tick] = {}
+							query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + newNote.tick][String(newNote.pitch)] = newNote.duration
+						}
+						else {
+							updatedParts[partId].staves[s][measureNumber].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+							query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + newNote.tick + "." + newNote.pitch] = noteAfter.duration
+						}
+					}
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = updatedParts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* updatePartMeasureNote */
+		module.exports.actions.updatePartMeasureNote = updatePartMeasureNote
+		function updatePartMeasureNote(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {staves: {}}
+						for (let s in part.staves) {
+							previousData.parts[partId].staves[s] = {}
+							previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+						}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// impossible note
+					let noteBefore = REQUEST.post.noteBefore
+					let noteAfter = REQUEST.post.noteAfter
+					if (!noteAfter || !noteAfter.pitch || !noteAfter.duration) {
+						callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// find new measure
+					let newMeasureNumber = Number(measureNumber)
+					if (noteAfter.tick < 0) {
+						while (noteAfter.tick < 0) {
+							newMeasureNumber--
+							if (newMeasureNumber && music.measureTicks[String(newMeasureNumber)]) {
+								noteAfter.tick += music.measureTicks[String(newMeasureNumber)]
+							}
+							if (!newMeasureNumber) {
+								callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
+								return
+							}
+						}
+					}
+
+					if (noteAfter.tick >= music.measureTicks[newMeasureNumber]) {
+						while (noteAfter.tick >= music.measureTicks[String(newMeasureNumber)]) {
+							if (newMeasureNumber > lastMeasureNumber) {
+								callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
+								return
+							}
+							noteAfter.tick -= music.measureTicks[String(newMeasureNumber)]
+							newMeasureNumber++
+						}
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+
+				// find measure
+					const updatedParts = {}
+						updatedParts[partId] = {staves: {}}
+					for (let s in part.staves) {
+						updatedParts[partId].staves[s] = {}
+
+						// remove old note
+							updatedParts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							if (updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]) {
+								delete updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)][String(noteBefore.pitch)]
+
+								// only pitch at this tick?
+									if (!Object.keys(updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]).length) {
+										delete updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]
+										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + noteBefore.tick] = null
+									}
+									else {
+										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + noteBefore.tick + "." + noteBefore.pitch] = null
+									}
+							}
+
+						// set new note
+							if (newMeasureNumber !== measureNumber) {
+								updatedParts[partId].staves[s][newMeasureNumber] = {notes: part.staves[s][newMeasureNumber].notes}
+							}
+							if (!updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)]) {
+								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)] = {}
+								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)][String(noteAfter.pitch)] = noteAfter.duration
+								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick] = {}
+								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick][String(noteAfter.pitch)] = noteAfter.duration
+							}
+							else {
+								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)][String(noteAfter.pitch)] = noteAfter.duration
+								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick + "." + noteAfter.pitch] = noteAfter.duration
+							}
+					}
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = updatedParts
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+	/* deletePartMeasureNote */
+		module.exports.actions.deletePartMeasureNote = deletePartMeasureNote
+		function deletePartMeasureNote(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// get measure number
+					const measureNumber = Number(REQUEST.post.measure) || 0
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
+					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {staves: {}}
+						for (let s in part.staves) {
+							previousData.parts[partId].staves[s] = {}
+							previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+						}
+
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// impossible note
+					let oldNote = REQUEST.post.note
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+
+				// find measure
+					const updatedParts = {}
+						updatedParts[partId] = {staves: {}}
+					for (let s in part.staves) {
+						updatedParts[partId].staves[s] = {}
+
+						// remove old note
+							updatedParts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							if (updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]) {
+								delete updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)][String(oldNote.pitch)]
+
+								// only pitch at this tick?
+									if (!Object.keys(updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]).length) {
+										delete updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]
+										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + oldNote.tick] = null
+									}
+									else {
+										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + oldNote.tick + "." + oldNote.pitch] = null
+									}
+							}
 					}
 
 				// update

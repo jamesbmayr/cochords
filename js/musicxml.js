@@ -624,7 +624,7 @@
 			try {
 				// loop through all
 					for (let i in MUSICXML_J.constants.dynamicToNumber) {
-						if (dynamicAmount > MUSICXML_J.constants.dynamicToNumber[i]) {
+						if (dynamicAmount >= MUSICXML_J.constants.dynamicToNumber[i]) {
 							return i
 						}
 					}
@@ -1050,7 +1050,7 @@
 		function buildMusicXMLPart(musicJSON, partId, partIndex) {
 			try {
 				// get part
-					const partJSON = musicJSON.paPrts[partIndex]
+					const partJSON = musicJSON.parts[partId]
 
 				// parts list
 					// start

@@ -184,12 +184,30 @@
 			color: var(--medium-gray);
 			font-size: var(--medium-font-size);
 			user-select: none;
+			transition: var(--transition-time);
+			pointer-events: none;
+		}
+
+		#previous-music-none[invisible] {
+			height: 0;
+			font-size: 0;
 		}
 
 		.previous-music-button {
-			width: 100%;
+			width: calc(100% - var(--medium-font-size) - 2 * var(--medium-gap-size));
 			margin: 0 0 var(--medium-gap-size) 0;
-			background: var(--medium-gray);
+			background: var(--medium-blue);
+			border-radius: var(--border-radius) 0 0 var(--border-radius);
+		}
+
+		.previous-music-delete {
+			display: inline-block;
+			width: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+			background: var(--medium-red);
+			border-radius: 0 var(--border-radius) var(--border-radius) 0;
+			vertical-align: top;
+			margin-bottom: var(--medium-gap-size);
 		}
 
 /*** j-logo ***/
