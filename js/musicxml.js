@@ -758,9 +758,12 @@
 					const partsXML = Array.from(musicXML.querySelectorAll("part"))
 
 				// loop through XML
+					let partOrder = 0
 					for (let p in partsXML) {
 						const partJSON = parseMusicXMLPart(musicXML, partsXML[p])
 						if (partJSON) {
+							partOrder++
+							partJSON.order = partOrder
 							musicJSON.parts[partJSON.partId] = partJSON
 						}
 					}
@@ -1001,10 +1004,11 @@
 				// parts
 					const partsList = []
 					const parts = []
-					let partIndex = 0
-					for (let i in musicJSON.parts) {
-						partIndex++
-						const output = buildMusicXMLPart(musicJSON, i, partIndex)
+					const partKeys = Object.keys(musicJSON.parts).sort(function(a, b) {
+						return musicJSON.parts[a].order - musicJSON.parts[b].order
+					})
+					for (let i in partKeys) {
+						const output = buildMusicXMLPart(musicJSON, partKeys[i])
 							partsList.push(output[0])
 							parts.push(output[1])
 					}
@@ -1047,14 +1051,14 @@
 
 	/* buildMusicXMLPart */
 		MUSICXML_J.buildMusicXMLPart = buildMusicXMLPart
-		function buildMusicXMLPart(musicJSON, partId, partIndex) {
+		function buildMusicXMLPart(musicJSON, partId) {
 			try {
 				// get part
 					const partJSON = musicJSON.parts[partId]
 
 				// parts list
 					// start
-						let partsListXML = `\t\t<score-part id="P` + partIndex + `">\n`
+						let partsListXML = `\t\t<score-part id="P` + partJSON.order + `">\n`
 
 					// name
 						partsListXML += `\t\t\t<part-name>` + partJSON.name + `</part-name>\n`
@@ -1063,16 +1067,16 @@
 						partsListXML += `\t\t\t<part-abbreviation-display>\n\t\t\t\t<display-text>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</display-text>\n\t\t\t</part-abbreviation-display>\n`
 
 					// instrument
-						partsListXML += `\t\t\t<score-instrument id="P` + partIndex + `-I` + partIndex + `">\n\t\t\t\t<instrument-name>` + (partJSON.instrument || MUSICXML_J.constants.midiToInstrument[partJSON.midiProgram]) + `</instrument-name>\n\t\t\t</score-instrument>\n`
-						partsListXML += `\t\t\t<midi-device id="P` + partIndex + `-I` + partIndex + `"></midi-device>\n`
-						partsListXML += `\t\t\t<midi-instrument id="P` + partIndex + `-I` + partIndex + `">\n\t\t\t\t<midi-channel>` + partJSON.midiChannel + `</midi-channel>\n\t\t\t\t<midi-program>` + partJSON.midiProgram + `</midi-program>\n\t\t\t\t<volume>80</volume>\n\t\t\t\t<pan>0</pan>\n\t\t\t</midi-instrument>\n`
+						partsListXML += `\t\t\t<score-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n\t\t\t\t<instrument-name>` + (partJSON.instrument || MUSICXML_J.constants.midiToInstrument[partJSON.midiProgram]) + `</instrument-name>\n\t\t\t</score-instrument>\n`
+						partsListXML += `\t\t\t<midi-device id="P` + partJSON.order + `-I` + partJSON.order + `"></midi-device>\n`
+						partsListXML += `\t\t\t<midi-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n\t\t\t\t<midi-channel>` + partJSON.midiChannel + `</midi-channel>\n\t\t\t\t<midi-program>` + partJSON.midiProgram + `</midi-program>\n\t\t\t\t<volume>80</volume>\n\t\t\t\t<pan>0</pan>\n\t\t\t</midi-instrument>\n`
 
 					// end
 						partsListXML += `\t\t</score-part>\n`
 
 				// measures
 					// start
-						let partXML = `\t<part id="P` + partIndex + `">\n`
+						let partXML = `\t<part id="P` + partJSON.order + `">\n`
 
 					// loop through
 						const measures = []

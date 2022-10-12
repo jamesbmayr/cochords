@@ -261,6 +261,7 @@
 						case "part":
 							return {
 								id:          generateRandom(),
+								order:       0,
 								name:        "",
 								instrument:  "",
 								midiChannel: 0,
@@ -429,6 +430,7 @@
 								maximumPartNameLength: 20,
 								defaultTicks: 96,
 								defaultTempo: 120,
+								defaultMeasureCount: 4,
 								defaultDynamics: 0.69,
 								defaultMidiChannel: 1,
 								defaultMidiProgram: 1,

@@ -27,6 +27,31 @@
 					const music = CORE.getSchema("music")
 						music.composers[composer.id] = composer
 
+				// default part
+					const part = CORE.getSchema("part")
+						part.order = 1
+						part.name = "part " + part.order
+						part.instrument = CONSTANTS.defaultInstrument
+						part.midiChannel = CONSTANTS.defaultMidiChannel
+						part.midiProgram = CONSTANTS.defaultMidiProgram
+						part.synth = CONSTANTS.defaultSynth
+					music.parts[part.id] = part
+
+				// default measures
+					for (let m = 1; m <= CONSTANTS.defaultMeasureCount; m++) {
+						music.measureTicks[String(m)] = CONSTANTS.defaultTicks
+						
+						const measure = CORE.getSchema("measure")
+							measure.ticks = CONSTANTS.defaultTicks
+
+							if (m == 1) {
+								music.tempoChanges[String(m)] = CONSTANTS.defaultTempo
+								measure.dynamics = CONSTANTS.defaultDynamics
+							}
+
+						part.staves["1"][String(m)] = measure
+					}
+
 				// query
 					const query = CORE.getSchema("query")
 						query.collection = "music"
@@ -101,6 +126,7 @@
 
 							// info
 								part.name = partJSON.name
+								part.order = partJSON.order
 								part.instrument = midiInstrumentValues.includes(partJSON.instrument) ? partJSON.instrument : CONSTANTS.defaultInstrument
 								part.midiChannel = Math.min(CONSTANTS.maximumMidiChannel, Math.max(CONSTANTS.minimumMidiChannel, partJSON.midiChannel))
 								part.midiProgram = Number(Math.min(Number(midiInstrumentKeys[midiInstrumentKeys.length - 1]), Math.max(Number(midiInstrumentKeys[0]), partJSON.midiProgram)))
@@ -814,27 +840,30 @@
 							const staff = music.parts[p].staves[s]
 							for (let m = lastMeasureNumber; m >= measureNumber; m--) {
 								updatedParts[p].staves[s][String(m + 1)] = CORE.duplicateObject(music.parts[p].staves[s][String(m)] || CORE.getSchema("measure"))
+								query.document["parts." + p + ".staves." + s + "." + String(m + 1)] = CORE.duplicateObject(updatedParts[p].staves[s][String(m + 1)])
 								if (!updatedParts[p].staves[s][String(m + 1)].dynamics) {
 									updatedParts[p].staves[s][String(m + 1)].dynamics = null
 								}
-								query.document["parts." + p + ".staves." + s + "." + String(m + 1)] = CORE.duplicateObject(music.parts[p].staves[s][String(m)] || CORE.getSchema("measure"))
 							}
 
 							const newMeasure = CORE.getSchema("measure")
 								newMeasure.ticks = newMeasureTicks
-								newMeasure.dynamics = null
 								if (measureNumber == 1) {
 									if (!lastMeasureNumber) {
 										newMeasure.dynamics = CONSTANTS.defaultDynamics
 									}
 									else {
-										newMeasure.dynamics = music.parts[p].staves[s]["2"].dynamics || CONSTANTS.defaultDynamics
-										updatedParts[p].staves[s]["2"] = {dynamics: null}
-										query.document["parts." + p + ".staves." + s + ".2.dynamics"] = null
+										newMeasure.dynamics = updatedParts[p].staves[s]["2"].dynamics || CONSTANTS.defaultDynamics
+										updatedParts[p].staves[s]["2"].dynamics = null
+										delete query.document["parts." + p + ".staves." + s + ".2"].dynamics
 									}
 								}
+							
+							query.document["parts." + p + ".staves." + s + "." + String(measureNumber)] = CORE.duplicateObject(newMeasure)
+							if (measureNumber > 1) {
+								newMeasure.dynamics = null
+							}
 							updatedParts[p].staves[s][String(measureNumber)] = newMeasure
-							query.document["parts." + p + ".staves." + s + "." + String(measureNumber)] = newMeasure
 						}
 					}
 
@@ -920,7 +949,7 @@
 							const staff = music.parts[p].staves[s]
 							for (let m = measureNumber; m < lastMeasureNumber; m++) {
 								updatedParts[p].staves[s][String(m)] = CORE.duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
-								if (!updatedParts[p].staves[s][String(m)].dynamics) {
+								if (updatedParts[p].staves[s][String(m)].dynamics === undefined) {
 									updatedParts[p].staves[s][String(m)].dynamics = null
 								}
 								query.document["parts." + p + ".staves." + s + "." + String(m)] = CORE.duplicateObject(staff[String(m + 1)] || CORE.getSchema("measure"))
@@ -928,7 +957,7 @@
 							updatedParts[p].staves[s][String(lastMeasureNumber)] = null
 							query.document["parts." + p + ".staves." + s + "." + String(lastMeasureNumber)] = null
 
-							if (measureNumber == 1 && lastMeasureNumber >= 2) {
+							if (measureNumber == 1 && lastMeasureNumber >= 2 && updatedParts[p].staves[s]["1"].dynamics === null) {
 								updatedParts[p].staves[s]["1"].dynamics = music.parts[p].staves[s]["1"].dynamics
 								query.document["parts." + p + ".staves." + s + ".1"].dynamics = music.parts[p].staves[s]["1"].dynamics
 							}
@@ -1412,6 +1441,89 @@
 			}
 		}
 
+	/* updatePartOrder */
+		module.exports.actions.updatePartOrder = updatePartOrder
+		function updatePartOrder(REQUEST, music, composer, callback) {
+			try {
+				// get part
+					const partId = String(REQUEST.post.partId) || null
+					if (!partId || !partId.length || !music.parts[partId]) {
+						callback({musicId: musicId, success: false, message: "could not find part " + partId, recipients: [REQUEST.session.id]})
+						return
+					}
+					const part = music.parts[REQUEST.post.partId]
+
+				// previous data
+					const partKeys = Object.keys(music.parts)
+					const previousData = {parts: {}}
+						previousData.parts[partId] = {order: part.order}
+
+				// validate
+					const direction = REQUEST.post.direction || null
+					const oldOrder = part.order
+
+					if (!direction || (direction !== "up" && direction !== "down")) {
+						callback({musicId: musicId, success: false, message: "unknown direction", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+					if (direction == "up" && oldOrder == 1) {
+						callback({musicId: musicId, success: false, message: "unable to move first part up", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+					if (direction == "down" && oldOrder == partKeys.length) {
+						callback({musicId: musicId, success: false, message: "unable to move last part down", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// get swap
+					const newOrder = oldOrder + (direction == "up" ? -1 : direction == "down" ? 1 : 0)
+					const otherPartId = partKeys.find(function(p) {
+						return music.parts[p].order == newOrder
+					}) || null
+					if (!newOrder || !otherPartId) {
+						callback({musicId: musicId, success: false, message: "could not swap order", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
+				// query
+					const query = CORE.getSchema("query")
+						query.collection = "music"
+						query.command = "update"
+						query.filters = {id: music.id}
+						query.document = {
+							updated: new Date().getTime()
+						}
+						query.document["parts." + partId + ".order"] = newOrder
+						query.document["parts." + otherPartId + ".order"] = oldOrder
+
+				// update
+					CORE.accessDatabase(query, function(results) {
+						if (!results.success) {
+							results.musicId = REQUEST.path[REQUEST.path.length - 1]
+							results.recipients = [REQUEST.session.id]
+							callback(results)
+							return
+						}
+
+						// updated music
+							const music = results.documents[0]
+							const updatedData = {}
+								updatedData.parts = {}
+								updatedData.parts[partId] = {order: newOrder}
+								updatedData.parts[otherPartId] = {order: oldOrder}
+
+						// inform other composers
+							for (let i in music.composers) {
+								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+							}
+					})
+			}
+			catch (error) {
+				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
 	/* deletePart */
 		module.exports.actions.deletePart = deletePart
 		function deletePart(REQUEST, music, composer, callback) {
@@ -1440,6 +1552,16 @@
 						}
 						query.document["parts." + partId] = null
 
+				// all subsequent parts
+					const updatedParts = {}
+						updatedParts[partId] = null
+					for (let p in music.parts) {
+						if (music.parts[p].order > part.order) {
+							updatedParts[p] = {order: music.parts[p].order - 1}
+							query.document["parts." + p + ".order"] = music.parts[p].order - 1
+						}
+					}
+
 				// update
 					CORE.accessDatabase(query, function(results) {
 						if (!results.success) {
@@ -1452,8 +1574,7 @@
 						// updated music
 							const music = results.documents[0]
 							const updatedData = {}
-								updatedData.parts = {}
-								updatedData.parts[partId] = null
+								updatedData.parts = updatedParts
 
 						// inform other composers
 							for (let i in music.composers) {
@@ -1487,7 +1608,8 @@
 
 				// new
 					const part = CORE.getSchema("part")
-						part.name = "unnamed part"
+						part.order = Object.keys(music.parts).length + 1
+						part.name = "part " + part.order
 						part.instrument = CONSTANTS.defaultInstrument
 						part.midiChannel = nextAvailableChannel
 						part.midiProgram = CONSTANTS.defaultMidiProgram
@@ -1648,8 +1770,15 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// impossible note
+					const newNote = REQUEST.post.note
+					if (!newNote || !newNote.pitch || !newNote.duration) {
+						callback({musicId: musicId, success: false, message: "invalid note", recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// get measure number
-					const measureNumber = Number(REQUEST.post.measure) || 0
+					const measureNumber = Number(newNote.measureNumber) || 0
 					const lastMeasureNumber = Object.keys(music.measureTicks).length
 					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
 						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
@@ -1667,13 +1796,6 @@
 				// already being edited by someone else
 					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
 						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
-				// impossible note
-					let newNote = REQUEST.post.note
-					if (!newNote || !newNote.pitch || !newNote.duration) {
-						callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1731,9 +1853,9 @@
 			}
 		}
 
-	/* updatePartMeasureNote */
-		module.exports.actions.updatePartMeasureNote = updatePartMeasureNote
-		function updatePartMeasureNote(REQUEST, music, composer, callback) {
+	/* updatePartMeasureNotes */
+		module.exports.actions.updatePartMeasureNotes = updatePartMeasureNotes
+		function updatePartMeasureNotes(REQUEST, music, composer, callback) {
 			try {
 				// get part
 					const partId = String(REQUEST.post.partId) || null
@@ -1743,20 +1865,27 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
-				// get measure number
-					const measureNumber = Number(REQUEST.post.measure) || 0
-					const lastMeasureNumber = Object.keys(music.measureTicks).length
-					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
-						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+				// notes
+					const updatedNotes = REQUEST.post.notes
+					if (!REQUEST.post.notes || !REQUEST.post.notes.length) {
+						callback({musicId: musicId, success: false, message: "no notes selected to change", recipients: [REQUEST.session.id]})
 						return
 					}
 
 				// previous data
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {staves: {}}
 						for (let s in part.staves) {
 							previousData.parts[partId].staves[s] = {}
-							previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							for (let n in updatedNotes) {
+								const measureNumber = updatedNotes[n].measureNumber
+								if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+									callback({musicId: musicId, success: false, message: "cannot update notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+									return
+								}
+								previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							}
 						}
 
 				// already being edited by someone else
@@ -1765,38 +1894,44 @@
 						return
 					}
 
-				// impossible note
-					let noteBefore = REQUEST.post.noteBefore
-					let noteAfter = REQUEST.post.noteAfter
-					if (!noteAfter || !noteAfter.pitch || !noteAfter.duration) {
-						callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
+				// loop through notes
+					for (let n in updatedNotes) {
+						// updated note
+							const updatedNote = updatedNotes[n]
 
-				// find new measure
-					let newMeasureNumber = Number(measureNumber)
-					if (noteAfter.tick < 0) {
-						while (noteAfter.tick < 0) {
-							newMeasureNumber--
-							if (newMeasureNumber && music.measureTicks[String(newMeasureNumber)]) {
-								noteAfter.tick += music.measureTicks[String(newMeasureNumber)]
-							}
-							if (!newMeasureNumber) {
-								callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
+						// impossible note
+							let noteBefore = updatedNote.noteBefore
+							let noteAfter = updatedNote.noteAfter
+							if (!noteAfter || !noteAfter.pitch || !noteAfter.duration) {
+								callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
 								return
 							}
-						}
-					}
 
-					if (noteAfter.tick >= music.measureTicks[newMeasureNumber]) {
-						while (noteAfter.tick >= music.measureTicks[String(newMeasureNumber)]) {
-							if (newMeasureNumber > lastMeasureNumber) {
-								callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
-								return
+						// find new measure
+							updatedNote.newMeasureNumber = Number(updatedNote.measureNumber)
+							if (noteAfter.tick < 0) {
+								while (noteAfter.tick < 0) {
+									updatedNote.newMeasureNumber--
+									if (updatedNote.newMeasureNumber && music.measureTicks[String(updatedNote.newMeasureNumber)]) {
+										noteAfter.tick += music.measureTicks[String(updatedNote.newMeasureNumber)]
+									}
+									if (!updatedNote.newMeasureNumber) {
+										callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
+										return
+									}
+								}
 							}
-							noteAfter.tick -= music.measureTicks[String(newMeasureNumber)]
-							newMeasureNumber++
-						}
+
+							if (noteAfter.tick >= music.measureTicks[updatedNote.newMeasureNumber]) {
+								while (noteAfter.tick >= music.measureTicks[String(updatedNote.newMeasureNumber)]) {
+									if (updatedNote.newMeasureNumber > lastMeasureNumber) {
+										callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
+										return
+									}
+									noteAfter.tick -= music.measureTicks[String(updatedNote.newMeasureNumber)]
+									updatedNote.newMeasureNumber++
+								}
+							}
 					}
 
 				// query
@@ -1814,35 +1949,40 @@
 					for (let s in part.staves) {
 						updatedParts[partId].staves[s] = {}
 
-						// remove old note
-							updatedParts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
-							if (updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]) {
-								delete updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)][String(noteBefore.pitch)]
+						for (let n in updatedNotes) {
+							// note
+								const note = updatedNotes[n]
 
-								// only pitch at this tick?
-									if (!Object.keys(updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]).length) {
-										delete updatedParts[partId].staves[s][measureNumber].notes[String(noteBefore.tick)]
-										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + noteBefore.tick] = null
-									}
-									else {
-										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + noteBefore.tick + "." + noteBefore.pitch] = null
-									}
-							}
+							// remove old note
+								updatedParts[partId].staves[s][note.measureNumber] = {notes: part.staves[s][note.measureNumber].notes}
+								if (updatedParts[partId].staves[s][note.measureNumber].notes[String(note.noteBefore.tick)]) {
+									delete updatedParts[partId].staves[s][note.measureNumber].notes[String(note.noteBefore.tick)][String(note.noteBefore.pitch)]
 
-						// set new note
-							if (newMeasureNumber !== measureNumber) {
-								updatedParts[partId].staves[s][newMeasureNumber] = {notes: part.staves[s][newMeasureNumber].notes}
-							}
-							if (!updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)]) {
-								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)] = {}
-								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)][String(noteAfter.pitch)] = noteAfter.duration
-								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick] = {}
-								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick][String(noteAfter.pitch)] = noteAfter.duration
-							}
-							else {
-								updatedParts[partId].staves[s][newMeasureNumber].notes[String(noteAfter.tick)][String(noteAfter.pitch)] = noteAfter.duration
-								query.document["parts." + partId + ".staves." + s + "." + newMeasureNumber + ".notes." + noteAfter.tick + "." + noteAfter.pitch] = noteAfter.duration
-							}
+									// only pitch at this tick?
+										if (!Object.keys(updatedParts[partId].staves[s][note.measureNumber].notes[String(note.noteBefore.tick)]).length) {
+											delete updatedParts[partId].staves[s][note.measureNumber].notes[String(note.noteBefore.tick)]
+											query.document["parts." + partId + ".staves." + s + "." + note.measureNumber + ".notes." + note.noteBefore.tick] = null
+										}
+										else {
+											query.document["parts." + partId + ".staves." + s + "." + note.measureNumber + ".notes." + note.noteBefore.tick + "." + note.noteBefore.pitch] = null
+										}
+								}
+
+							// set new note
+								if (note.newMeasureNumber !== note.measureNumber) {
+									updatedParts[partId].staves[s][note.newMeasureNumber] = {notes: part.staves[s][note.newMeasureNumber].notes}
+								}
+								if (!updatedParts[partId].staves[s][note.newMeasureNumber].notes[String(note.noteAfter.tick)]) {
+									updatedParts[partId].staves[s][note.newMeasureNumber].notes[String(note.noteAfter.tick)] = {}
+									updatedParts[partId].staves[s][note.newMeasureNumber].notes[String(note.noteAfter.tick)][String(note.noteAfter.pitch)] = note.noteAfter.duration
+									query.document["parts." + partId + ".staves." + s + "." + note.newMeasureNumber + ".notes." + note.noteAfter.tick] = {}
+									query.document["parts." + partId + ".staves." + s + "." + note.newMeasureNumber + ".notes." + note.noteAfter.tick][String(note.noteAfter.pitch)] = note.noteAfter.duration
+								}
+								else {
+									updatedParts[partId].staves[s][note.newMeasureNumber].notes[String(note.noteAfter.tick)][String(note.noteAfter.pitch)] = note.noteAfter.duration
+									query.document["parts." + partId + ".staves." + s + "." + note.newMeasureNumber + ".notes." + note.noteAfter.tick + "." + note.noteAfter.pitch] = note.noteAfter.duration
+								}
+						}
 					}
 
 				// update
@@ -1871,9 +2011,9 @@
 			}
 		}
 
-	/* deletePartMeasureNote */
-		module.exports.actions.deletePartMeasureNote = deletePartMeasureNote
-		function deletePartMeasureNote(REQUEST, music, composer, callback) {
+	/* deletePartMeasureNotes */
+		module.exports.actions.deletePartMeasureNotes = deletePartMeasureNotes
+		function deletePartMeasureNotes(REQUEST, music, composer, callback) {
 			try {
 				// get part
 					const partId = String(REQUEST.post.partId) || null
@@ -1883,20 +2023,27 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
-				// get measure number
-					const measureNumber = Number(REQUEST.post.measure) || 0
-					const lastMeasureNumber = Object.keys(music.measureTicks).length
-					if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
-						callback({musicId: musicId, success: false, message: "cannot change notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
+				// notes
+					const oldNotes = REQUEST.post.notes
+					if (!REQUEST.post.notes || !REQUEST.post.notes.length) {
+						callback({musicId: musicId, success: false, message: "no notes selected for deletion", recipients: [REQUEST.session.id]})
 						return
 					}
 
 				// previous data
+					const lastMeasureNumber = Object.keys(music.measureTicks).length
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {staves: {}}
 						for (let s in part.staves) {
 							previousData.parts[partId].staves[s] = {}
-							previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							for (let n in oldNotes) {
+								const measureNumber = oldNotes[n].measureNumber
+								if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
+									callback({musicId: musicId, success: false, message: "cannot remove notes from measure " + measureNumber, recipients: [REQUEST.session.id]})
+									return
+								}
+								previousData.parts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
+							}
 						}
 
 				// already being edited by someone else
@@ -1904,9 +2051,6 @@
 						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
-
-				// impossible note
-					let oldNote = REQUEST.post.note
 
 				// query
 					const query = CORE.getSchema("query")
@@ -1923,19 +2067,22 @@
 					for (let s in part.staves) {
 						updatedParts[partId].staves[s] = {}
 
-						// remove old note
-							updatedParts[partId].staves[s][measureNumber] = {notes: part.staves[s][measureNumber].notes}
-							if (updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]) {
-								delete updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)][String(oldNote.pitch)]
+						// remove old notes
+							for (let n in oldNotes) {
+								const oldNote = oldNotes[n]
+								updatedParts[partId].staves[s][oldNote.measureNumber] = {notes: part.staves[s][oldNote.measureNumber].notes}
+								if (updatedParts[partId].staves[s][oldNote.measureNumber].notes[String(oldNote.tick)]) {
+									delete updatedParts[partId].staves[s][oldNote.measureNumber].notes[String(oldNote.tick)][String(oldNote.pitch)]
 
-								// only pitch at this tick?
-									if (!Object.keys(updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]).length) {
-										delete updatedParts[partId].staves[s][measureNumber].notes[String(oldNote.tick)]
-										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + oldNote.tick] = null
-									}
-									else {
-										query.document["parts." + partId + ".staves." + s + "." + measureNumber + ".notes." + oldNote.tick + "." + oldNote.pitch] = null
-									}
+									// only pitch at this tick?
+										if (!Object.keys(updatedParts[partId].staves[s][oldNote.measureNumber].notes[String(oldNote.tick)]).length) {
+											delete updatedParts[partId].staves[s][oldNote.measureNumber].notes[String(oldNote.tick)]
+											query.document["parts." + partId + ".staves." + s + "." + oldNote.measureNumber + ".notes." + oldNote.tick] = null
+										}
+										else {
+											query.document["parts." + partId + ".staves." + s + "." + oldNote.measureNumber + ".notes." + oldNote.tick + "." + oldNote.pitch] = null
+										}
+								}
 							}
 					}
 
