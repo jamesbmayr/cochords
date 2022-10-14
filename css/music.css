@@ -2,6 +2,7 @@
 	body {
 		background: var(--medium-gray);
 		--pitch-height-modifier: 1;
+		scroll-behavior: smooth;
 	}
 
 	/* divisions */
@@ -485,6 +486,7 @@
 				position: sticky;
 				top: 0;
 				z-index: 1;
+				scroll-margin-left: var(--left-column-size);
 			}
 
 			.music-measure-insert {
@@ -889,6 +891,8 @@
 				color: white;
 				vertical-align: top;
 				padding: 0;
+				scroll-margin-left: var(--left-column-size);
+				scroll-margin-top: calc(3 * (var(--medium-font-size) + 2 * var(--medium-gap-size)) + var(--border-size));
 			}
 
 			.part-measure:last-child {

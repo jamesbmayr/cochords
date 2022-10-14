@@ -1,13 +1,15 @@
 /*** globals ***/
 	/* triggers */
 		const TRIGGERS = {
+			input: "input",
 			change: "change",
-			click: "click",
 			submit: "submit",
+			click: "click",
 			doubleclick: "dblclick",
 			contextmenu: "contextmenu",
 			keydown: "keydown",
-			keyup: "keyup"
+			keyup: "keyup",
+			scroll: "scroll"
 		}
 
 		setTriggers()
@@ -47,13 +49,16 @@
 
 	/* constants */
 		const CONSTANTS = {
-			pingLoop: 1000 * 60,
+			minute: 1000 * 60, // ms
+			pingLoop: 1000 * 60, // ms
+			leftColumnWidth: 200, // px
+			defaultTempo: 120, // bpm
 			tickWidth: 5, // var(--tick-width)
 			pitchHeight: 3 * 5, // var(--pitch-height) * var(--pitch-height-modifier)
-			minimumDuration: 2,
-			ticksPerBeat: 24,
-			lowestPitch: 24,
-			highestPitch: 96,
+			minimumDuration: 2, // ms
+			ticksPerBeat: 24, // tick
+			lowestPitch: 24, // midi
+			highestPitch: 96, // midi
 			keyboard: {
 				escape: 27,
 				tab: 9,
@@ -181,7 +186,19 @@
 				up: false,
 				down: false
 			},
-			keyboardListeners: {}
+			keyboardListeners: {},
+			playback: {
+				loop: null,
+				playing: false,
+				swing: false,
+				looping: false,
+				metronome: false,
+				tempo: CONSTANTS.defaultTempo,
+				tempoMultiplier: 1,
+				interval: null,
+				currentMeasure: 1,
+				currentTickOfMeasure: 0
+			}
 		}
 
 	/* keyboard interaction */
@@ -250,6 +267,7 @@
 				uploadSynth: document.querySelector("#header-playback-upload-synth-input"),
 			},
 			content: {
+				element: document.querySelector("#content-outer"),
 				measuresContainer: document.querySelector("#content-measures"),
 				measures: {},
 				measuresSpacer: document.querySelector("#content-measures-spacer"),
@@ -649,6 +667,7 @@
 				// set swing
 					STATE.music.swing = swing || false
 					ELEMENTS.header.swing.checked = STATE.music.swing
+					STATE.playback.swing = STATE.music.swing
 			} catch (error) {console.log(error)}
 		}
 
@@ -666,6 +685,157 @@
 						musicId: STATE.music.id,
 						swing: swing
 					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* updateCurrentMeasure */
+		ELEMENTS.header.measuresCurrent.addEventListener(TRIGGERS.input, updateCurrentMeasure)
+		function updateCurrentMeasure(event) {
+			try {
+				// no measures
+					const totalMeasures = Object.keys(STATE.music.measureTicks).length
+					if (!totalMeasures) {
+						ELEMENTS.header.measuresCurrent.value = 0
+						return
+					}
+
+				// get measure
+					const measureNumber = Math.floor(ELEMENTS.header.measuresCurrent.value) || 0
+					if (!measureNumber || measureNumber < 0) {
+						ELEMENTS.header.measuresCurrent.value = 1
+						return
+					}
+					if (measureNumber > totalMeasures) {
+						ELEMENTS.header.measuresCurrent.value = totalMeasures
+						return
+					}
+
+				// set state
+					STATE.playback.currentMeasure = measureNumber
+					ELEMENTS.header.measuresCurrent.value = measureNumber
+					STATE.playback.currentTickOfMeasure = 0
+
+				// find measure element
+					const measureElement = STATE.selected.partId ? ELEMENTS.content.parts[STATE.selected.partId].measures[measureNumber].element : ELEMENTS.content.measures[measureNumber].element
+					measureElement.scrollIntoView({block: "start", inline: "start"})
+			} catch (error) {console.log(error)}
+		}
+
+	/* setCurrentMeasure */
+		ELEMENTS.content.element.addEventListener(TRIGGERS.scroll, setCurrentMeasure)
+		function setCurrentMeasure(event) {
+			try {
+				// currentMeasure is active
+					if (document.activeElement == ELEMENTS.header.measuresCurrent) {
+						return
+					}
+
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
+				// no measures
+					const firstMeasure = ELEMENTS.content.measures["1"]
+					if (!firstMeasure) {
+						return
+					}
+
+				// get current scroll position
+					for (let m in ELEMENTS.content.measures) {
+						const measureRect = ELEMENTS.content.measures[m].element.getBoundingClientRect()
+						if (measureRect.x + measureRect.width > CONSTANTS.leftColumnWidth) {
+							STATE.playback.currentMeasure = Number(m)
+							STATE.playback.currentTickOfMeasure = 0
+							ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+							return
+						}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* setLooping */
+		ELEMENTS.header.loop.addEventListener(TRIGGERS.change, setLooping)
+		function setLooping(event) {
+			try {
+				// set state
+					STATE.playback.looping = Boolean(ELEMENTS.header.loop.checked)
+			} catch (error) {console.log(error)}
+		}
+
+	/* setMetronome */
+		ELEMENTS.header.metronome.addEventListener(TRIGGERS.change, setMetronome)
+		function setMetronome(event) {
+			try {
+				// set state
+					STATE.playback.metronome = Boolean(ELEMENTS.header.metronome.checked)
+			} catch (error) {console.log(error)}
+		}
+
+	/* setTempoMultiplier */
+		ELEMENTS.header.tempoMultiplier.addEventListener(TRIGGERS.change, setTempoMultiplier)
+		function setTempoMultiplier(event) {
+			try {
+				// validate
+					const tempoMultiplier = Number(ELEMENTS.header.tempoMultiplier.value)
+					if (!tempoMultiplier || tempoMultiplier < Number(ELEMENTS.header.tempoMultiplier.min)) {
+						ELEMENTS.header.tempoMultiplier.value = ELEMENTS.header.tempoMultiplier.min
+						return
+					}
+					if (tempoMultiplier > Number(ELEMENTS.header.tempoMultiplier.max)) {
+						ELEMENTS.header.tempoMultiplier.value = ELEMENTS.header.tempoMultiplier.max
+						return
+					}
+
+				// set state
+					STATE.playback.tempoMultiplier = tempoMultiplier
+
+				// interval
+					STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
+
+				// playing?
+					if (STATE.playback.playing) {
+						clearInterval(STATE.playback.loop)
+						STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* setPlaying */
+		ELEMENTS.header.play.addEventListener(TRIGGERS.change, setPlaying)
+		function setPlaying(event) {
+			try {
+				// set state
+					STATE.playback.playing = Boolean(ELEMENTS.header.play.checked)
+
+				// stop?
+					if (!STATE.playback.playing) {
+						clearInterval(STATE.playback.loop)
+						STATE.playback.loop = null
+
+						for (let i in AUDIO_J.instruments) {
+							AUDIO_J.instruments[i].setParameters({ power: 0 })
+						}
+						return
+					}
+
+				// tempo
+					let currentTempo = CONSTANTS.defaultTempo
+					for (let t in STATE.music.tempoChanges) {
+						if (Number(t) <= STATE.playback.currentMeasure) {
+							currentTempo = STATE.music.tempoChanges[t]
+						}
+					}
+					STATE.playback.tempo = currentTempo
+
+				// interval
+					STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
+
+				// playback
+					for (let i in AUDIO_J.instruments) {
+						AUDIO_J.instruments[i].setParameters({ power: 1 })
+					}
+					STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
 			} catch (error) {console.log(error)}
 		}
 
@@ -747,6 +917,9 @@
 								delete STATE.music.measureTicks[m]
 								ELEMENTS.content.measures[m].element.remove()
 								delete ELEMENTS.content.measures[m]
+								if (STATE.playback.currentMeasure == Number(m)) {
+									STATE.playback.currentMeasure = (Number(m) - 1)
+								}
 								continue
 							}
 
@@ -754,6 +927,10 @@
 							STATE.music.measureTicks[m] = measureTicks[m]
 							if (!ELEMENTS.content.measures[m]) {
 								ELEMENTS.content.measures[m] = buildMeasure(m)
+							}
+							if (!STATE.playback.currentMeasure) {
+								STATE.playback.currentMeasure = 1
+								ELEMENTS.header.measuresCurrent.value = 1
 							}
 							
 							ELEMENTS.content.measures[m].element.style.width = "calc(var(--tick-width) * " + measureTicks[m] + ")";
@@ -996,6 +1173,11 @@
 								ELEMENTS.content.parts[id].infoContainer.remove()
 								ELEMENTS.content.parts[id].measuresContainer.remove()
 								delete ELEMENTS.content.parts[id]
+
+								if (STATE.selected.partId == id) {
+									STATE.selected.partId = null
+									STATE.selected.notes = []
+								}
 								continue
 							}
 
@@ -1637,6 +1819,29 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* setPartVolume */
+		function setPartVolume(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-row").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// no audio_j
+					if (!AUDIO_J.audio || !AUDIO_J.instruments[partId]) {
+						return
+					}
+
+				// get volume
+					const volume = Math.min(1, Math.max(0, Number(event.target.value)))
+
+				// set instrument
+					AUDIO_J.instruments[partId].setParameters({volume: volume})
+			} catch (error) {console.log(error)}
+		}
+
 	/* deletePart */
 		function deletePart(event) {
 			try {
@@ -2098,25 +2303,86 @@
 		}
 
 /*** playback ***/
-	/* setPartVolume */
-		function setPartVolume(event) {
+	/* playNextTick */
+		function playNextTick(event) {
 			try {
-				// get part
-					const partId = event.target.closest(".part-row").getAttribute("partid")
-					if (!partId) {
-						showToast({success: false, message: "unable to find part"})
+				// no measures
+					const lastMeasureNumber = Object.keys(STATE.music.measureTicks).length
+					if (!lastMeasureNumber) {
+						clearInterval(STATE.playback.loop)
+						STATE.playback.loop = null
+						STATE.playback.playing = false
+						STATE.playback.currentMeasure = 0
+						STATE.playback.currentTickOfMeasure = 0
+
+						ELEMENTS.header.play.checked = false
+						ELEMENTS.header.currentMeasure.value = 0
 						return
 					}
 
-				// no audio_j
-					if (!AUDIO_J.audio || !AUDIO_J.instruments[partId]) {
-						return
+				// metronome
+					if (STATE.playback.metronome) {
+						// ???
 					}
 
-				// get volume
-					const volume = Math.min(1, Math.max(0, Number(event.target.value)))
+				// loop through parts
+					for (let p in STATE.music.parts) {
+						// ???
+					}
 
-				// set instrument
-					AUDIO_J.instruments[partId].setParameters({power: volume ? 1 : 0, volume: volume})
+				// slide content
+					const totalOffset = -CONSTANTS.leftColumnWidth + ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + (STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth)
+					ELEMENTS.content.element.scrollTo({left: totalOffset})
+
+				// update tick
+					STATE.playback.currentTickOfMeasure++
+
+					// next measure
+						if (STATE.playback.currentTickOfMeasure >= STATE.music.measureTicks[String(STATE.playback.currentMeasure)]) {
+							STATE.playback.currentTickOfMeasure = 0
+
+							// more measures?
+								if (STATE.playback.currentMeasure < lastMeasureNumber) {
+									STATE.playback.currentMeasure++
+									ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+
+									// tempo changes
+										if (STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]) {
+											STATE.playback.tempo = STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]
+											STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
+											clearInterval(STATE.playback.loop)
+											STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
+										}
+
+									return
+								}
+
+							// end of last measure, but looping?
+								if (STATE.playback.looping) {
+									STATE.playback.currentMeasure = 1
+									ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+
+									// tempo changes
+										if (STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]) {
+											STATE.playback.tempo = STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]
+											STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
+											clearInterval(STATE.playback.loop)
+											STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
+										}
+
+									return
+								}
+									
+							// end music
+								clearInterval(STATE.playback.loop)
+								STATE.playback.loop = null
+								STATE.playback.playing = false
+								STATE.playback.currentMeasure = 1
+								STATE.playback.currentTickOfMeasure = 0
+
+								ELEMENTS.header.play.checked = false
+								ELEMENTS.header.measuresCurrent.value = 1
+						}
 			} catch (error) {console.log(error)}
 		}
+
