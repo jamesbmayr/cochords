@@ -109,7 +109,6 @@
 				// from musicXML / musicJSON
 					music.title        = (REQUEST.post.musicJSON.title || "untitled").slice(0, CONSTANTS.maximumMusicTitleLength)
 					music.composer     = (REQUEST.post.musicJSON.composer || "").slice(0, CONSTANTS.maximumMusicComposerLength)
-					music.totalTicks   = REQUEST.post.musicJSON.totalTicks || 0
 					music.measureTicks = REQUEST.post.musicJSON.measureTicks || {}
 					music.swing        = REQUEST.post.musicJSON.swing || false
 					music.tempoChanges = REQUEST.post.musicJSON.tempoChanges || {}

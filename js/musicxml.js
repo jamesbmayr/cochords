@@ -769,14 +769,10 @@
 					}
 
 				// ticks, swing, tempo
-					musicJSON.totalTicks = 0
 					musicJSON.measureTicks = {}
 					musicJSON.swing = false
 					musicJSON.tempoChanges = {}
 					for (let p in musicJSON.parts) {
-						if (musicJSON.parts[p].totalTicks > musicJSON.totalTicks) {
-							musicJSON.totalTicks = musicJSON.parts[p].totalTicks
-						}
 						if (musicJSON.parts[p].swing) {
 							musicJSON.swing = true
 						}
@@ -837,12 +833,6 @@
 				// delete temporary attributes
 					delete partJSON.currentTicksPerMeasure
 					delete partJSON.currentTies
-
-				// add up ticks
-					partJSON.totalTicks = 0
-					for (let m in partJSON.staves["1"]) {
-						partJSON.totalTicks += (partJSON.staves["1"][m].ticks || 0)
-					}
 
 				// return
 					return partJSON

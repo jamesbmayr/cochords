@@ -49,6 +49,7 @@
 
 	/* constants */
 		const CONSTANTS = {
+			second: 1000, // s
 			minute: 1000 * 60, // ms
 			pingLoop: 1000 * 60, // ms
 			leftColumnWidth: 200, // px
@@ -59,6 +60,16 @@
 			ticksPerBeat: 24, // tick
 			lowestPitch: 24, // midi
 			highestPitch: 96, // midi
+			swingBeats: {
+				halfBeats: [0, 0.5, 3, 3.5, 6, 6.5, 9, 9.5], // tick
+				doubleBeats: [13, 16, 19, 22] // tick
+			},
+			metronome: {
+				synth: "ensnarl",
+				volume: 0.2, // ratio
+				frequency: 440, // Hz
+				sustain: 250, // ms
+			},
 			keyboard: {
 				escape: 27,
 				tab: 9,
@@ -159,7 +170,6 @@
 				title:        "",
 				composer:     "",
 				swing:        false,
-				totalTicks:   0,
 				measureTicks: {},
 				tempoChanges: {},
 				synths:       {},
@@ -197,7 +207,8 @@
 				tempoMultiplier: 1,
 				interval: null,
 				currentMeasure: 1,
-				currentTickOfMeasure: 0
+				currentTickOfMeasure: 0,
+				partDynamics: {}
 			}
 		}
 
@@ -483,9 +494,6 @@
 					}
 					if (musicJSON.swing !== undefined) {
 						receiveSwing(musicJSON.swing)
-					}
-					if (musicJSON.totalTicks !== undefined) {
-						STATE.music.totalTicks = musicJSON.totalTicks
 					}
 					if (musicJSON.measureTicks !== undefined) {
 						receiveMeasureTicks(musicJSON.measureTicks)
@@ -796,7 +804,7 @@
 				// playing?
 					if (STATE.playback.playing) {
 						clearInterval(STATE.playback.loop)
-						STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
+						STATE.playback.loop = setInterval(playTick, STATE.playback.interval)
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -812,9 +820,16 @@
 					if (!STATE.playback.playing) {
 						clearInterval(STATE.playback.loop)
 						STATE.playback.loop = null
+						STATE.playback.partDynamics = {}
 
-						for (let i in AUDIO_J.instruments) {
-							AUDIO_J.instruments[i].setParameters({ power: 0 })
+						ELEMENTS.content.element.removeAttribute("playing")
+
+						if (AUDIO_J.audio) {
+							for (let p in STATE.music.parts) {
+								if (AUDIO_J.instruments[p] && STATE.selected.partId !== p) {
+									AUDIO_J.instruments[p].setParameters({power: 0})
+								}
+							}
 						}
 						return
 					}
@@ -831,11 +846,23 @@
 				// interval
 					STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
 
-				// playback
-					for (let i in AUDIO_J.instruments) {
-						AUDIO_J.instruments[i].setParameters({ power: 1 })
+				// parts
+					for (let p in STATE.music.parts) {
+						// synths
+							if (AUDIO_J.audio && AUDIO_J.instruments[p]) {
+								AUDIO_J.instruments[p].setParameters({power: 1})
+							}
+
+						// dynamics
+							const measuresWithDynamics = Object.keys(STATE.music.parts[p].staves["1"]).filter(function(m) {
+								return (Number(m) <= STATE.playback.currentMeasure) && (STATE.music.parts[p].staves["1"][m].dynamics !== undefined)
+							}) || "1"
+							STATE.playback.partDynamics[p] = STATE.music.parts[p].staves["1"][measuresWithDynamics[measuresWithDynamics.length - 1]].dynamics
 					}
-					STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
+
+				// playback
+					ELEMENTS.content.element.setAttribute("playing", true)
+					STATE.playback.loop = setInterval(playTick, STATE.playback.interval)
 			} catch (error) {console.log(error)}
 		}
 
@@ -1178,6 +1205,11 @@
 									STATE.selected.partId = null
 									STATE.selected.notes = []
 								}
+
+								if (AUDIO_J.audio && AUDIO_J.instruments[id]) {
+									AUDIO_J.instruments[id].setParameters({power: 0})
+									delete AUDIO_J.instruments[id]
+								}
 								continue
 							}
 
@@ -1224,29 +1256,10 @@
 
 				// editor
 					if (partJSON.editorId !== undefined) {
-						if (partJSON.editorId == null) {
-							delete STATE.music.parts[partId].editorId
-							STATE.selected.partId = null
-							partObject.editorText.innerHTML = ""
-							partObject.editInput.checked = false
-							partObject.measuresContainer.removeAttribute("locked")
-						}
-						else if (partJSON.editorId == STATE.composerId) {
-							STATE.selected.partId = partId
-							STATE.music.parts[partId].editorId = partJSON.editorId
-							partObject.editInput.checked = true
-							partObject.measuresContainer.setAttribute("locked", "self")
-						}
-						else {
-							STATE.selected.partId = null
-							STATE.music.parts[partId].editorId = partJSON.editorId
-							partObject.editorText.innerHTML = "&#128274;&nbsp;" + STATE.music.composers[partJSON.editorId].name
-							partObject.editInput.checked = false
-							partObject.measuresContainer.setAttribute("locked", "other")
-						}
+						receivePartEditor(partId, partJSON, partObject)
 					}
 
-				// info
+				// sidebar info
 					if (partJSON.order) {
 						STATE.music.parts[partId].order = partJSON.order
 						partObject.measuresContainer.setAttribute("order", partJSON.order)
@@ -1263,9 +1276,29 @@
 						STATE.music.parts[partId].midiProgram = partJSON.midiProgram
 						partObject.instrumentSelect.value = partJSON.midiProgram
 					}
+
+				// synth --> update audio
 					if (partJSON.synth) {
 						STATE.music.parts[partId].synth = partJSON.synth
 						partObject.synthSelect.value = partJSON.synth
+
+						if (AUDIO_J.audio) {
+							if (AUDIO_J.instruments[partId]) {
+								AUDIO_J.instruments[partId].setParameters({power: 0})
+							}
+
+							const parameters = AUDIO_J.getInstrument(partJSON.synth)
+							if (parameters) {
+								AUDIO_J.instruments[partId] = AUDIO_J.buildInstrument(parameters)
+
+								if (STATE.playback.playing || STATE.selected.partId == partId) {
+									AUDIO_J.instruments[partId].setParameters({power: 1})
+								}
+								else {
+									AUDIO_J.instruments[partId].setParameters({power: 0})	
+								}
+							}
+						}
 					}
 
 				// measures
@@ -1295,6 +1328,71 @@
 
 								receivePartMeasure(partObject.measures[m], STATE.music.parts[partId].staves[s][m], measuresJSON[m])
 						}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* receivePartEditor */
+		function receivePartEditor(partId, partJSON, partObject) {
+			try {
+				// previously selected?
+					const wasSelected = Boolean(partId == STATE.selected.partId)
+
+				// no one or someone else now
+					if (partJSON.editorId == null) {
+						delete STATE.music.parts[partId].editorId
+						STATE.selected.partId = null
+						partObject.editorText.innerHTML = ""
+						partObject.editInput.checked = false
+						partObject.measuresContainer.removeAttribute("locked")
+					}
+					else if (partJSON.editorId !== STATE.composerId) {
+						STATE.selected.partId = null
+						STATE.music.parts[partId].editorId = partJSON.editorId
+						partObject.editorText.innerHTML = "&#128274;&nbsp;" + STATE.music.composers[partJSON.editorId].name
+						partObject.editInput.checked = false
+						partObject.measuresContainer.setAttribute("locked", "other")
+					}
+
+				// self now
+					else {
+						STATE.selected.partId = partId
+						STATE.music.parts[partId].editorId = partJSON.editorId
+						partObject.editInput.checked = true
+						partObject.measuresContainer.setAttribute("locked", "self")
+					}
+
+				// synth
+					if (AUDIO_J.audio && !STATE.playback.playing) {
+						AUDIO_J.instruments[partId].setParameters({power: (partJSON.editorId == STATE.composerId)})
+					}
+
+				// previously selected but not now --> put notes back
+					if (wasSelected && (partId !== STATE.selected.partId)) {
+						for (let n in STATE.selected.notes) {
+							const noteElement = STATE.selected.notes[n].element
+							
+							const originalTick = Number(noteElement.getAttribute("actual-tick"))
+							const originalPitch = Number(noteElement.getAttribute("actual-pitch"))
+							const originalDuration = Number(noteElement.getAttribute("actual-duration"))
+							
+							noteElement.setAttribute("tick", originalTick)
+							noteElement.setAttribute("pitch", originalPitch)
+							noteElement.setAttribute("duration", originalDuration)
+
+							const noteInfo = MUSICXML_J.constants.notes[originalPitch]
+							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
+							const noteColor = CONSTANTS.midiToColor[originalPitch] || "var(--dark-gray)"
+
+							noteElement.style.marginLeft = "calc(var(--tick-width) * " + originalTick + ")"
+							noteElement.style.width = "calc(var(--tick-width) * " + originalDuration + ")"
+							noteElement.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - originalPitch) + ")"
+							noteElement.style.background = noteColor
+							noteElement.querySelector(".part-measure-note-text").innerText = noteName
+							noteElement.removeAttribute("selected")
+						}
+
+						STATE.selected.notes = []
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1957,6 +2055,13 @@
 						duration: CONSTANTS.ticksPerBeat
 					}
 
+				// sound
+					if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
+						const frequency = AUDIO_J.getNote(note.pitch)[0]
+						AUDIO_J.instruments[STATE.selected.partId].press(frequency)
+						AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.second)
+					}
+
 				// send to server
 					STATE.socket.send(JSON.stringify({
 						action: "addPartMeasureNote",
@@ -2079,9 +2184,9 @@
 					for (let n in notes) {
 						const deletedNote = {
 							measureNumber: notes[n].measureNumber,
-							tick: Number(notes[n].getAttribute("actual-tick")),
-							pitch: Number(notes[n].getAttribute("actual-pitch")),
-							duration: Number(notes[n].getAttribute("actual-duration"))
+							tick: Number(notes[n].element.getAttribute("actual-tick")),
+							pitch: Number(notes[n].element.getAttribute("actual-pitch")),
+							duration: Number(notes[n].element.getAttribute("actual-duration"))
 						}
 						deletedNotes.push(deletedNote)
 					}
@@ -2110,6 +2215,7 @@
 					for (let n in notes) {
 						// note
 							const thisNote = notes[n]
+							const pitchBefore = Number(thisNote.element.getAttribute("pitch"))
 
 						// end
 							if (thisNote.end) {
@@ -2133,6 +2239,13 @@
 							thisNote.element.style.marginLeft = "calc(var(--tick-width) * " + tick + ")"
 							thisNote.element.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - pitch) + ")"
 							thisNote.element.querySelector(".part-measure-note-text").innerText = noteName
+
+						// sound
+							if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId] && pitch !== pitchBefore) {
+								const frequency = AUDIO_J.getNote(pitch)[0]
+								AUDIO_J.instruments[STATE.selected.partId].press(frequency)
+								AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.second)
+							}
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -2302,87 +2415,211 @@
 			} catch (error) {console.log(error)}
 		}
 
-/*** playback ***/
-	/* playNextTick */
-		function playNextTick(event) {
+/*** playback ***/	
+	/* firstClick */
+		window.addEventListener(TRIGGERS.click, firstClick)
+		function firstClick() {
+			try {
+				// already audio
+					if (AUDIO_J.audio) {
+						return
+					}
+
+				// build
+					AUDIO_J.buildAudio()
+
+				// metronome
+					AUDIO_J.instruments._metronome = AUDIO_J.buildInstrument(AUDIO_J.getInstrument(CONSTANTS.metronome.synth))
+					AUDIO_J.instruments._metronome.setParameters({volume: CONSTANTS.metronome.volume})
+
+				// existing parts
+					for (let p in STATE.music.parts) {
+						const parameters = AUDIO_J.getInstrument(STATE.music.parts[p].synth)
+						if (parameters) {
+							AUDIO_J.instruments[p] = AUDIO_J.buildInstrument(parameters)
+
+							if (STATE.playback.playing || p == STATE.selected.partId) {
+								AUDIO_J.instruments[p].setParameters({power: 1})
+							}
+							else {
+								AUDIO_J.instruments[p].setParameters({power: 0})	
+							}
+						}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* playTick */
+		function playTick() {
 			try {
 				// no measures
-					const lastMeasureNumber = Object.keys(STATE.music.measureTicks).length
-					if (!lastMeasureNumber) {
-						clearInterval(STATE.playback.loop)
-						STATE.playback.loop = null
-						STATE.playback.playing = false
-						STATE.playback.currentMeasure = 0
-						STATE.playback.currentTickOfMeasure = 0
-
-						ELEMENTS.header.play.checked = false
-						ELEMENTS.header.currentMeasure.value = 0
+					if (!STATE.music.measureTicks[STATE.playback.currentMeasure]) {
+						incrementTick()
 						return
 					}
 
 				// metronome
-					if (STATE.playback.metronome) {
-						// ???
+					if (STATE.playback.metronome && !(STATE.playback.currentTickOfMeasure % CONSTANTS.ticksPerBeat)) {
+						playMetronome()
 					}
 
 				// loop through parts
 					for (let p in STATE.music.parts) {
-						// ???
+						playPart(p)
 					}
 
-				// slide content
-					const totalOffset = -CONSTANTS.leftColumnWidth + ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + (STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth)
+				// slide measures
+					const totalOffset = -CONSTANTS.leftColumnWidth + 
+						ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + 
+						STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth
 					ELEMENTS.content.element.scrollTo({left: totalOffset})
 
-				// update tick
-					STATE.playback.currentTickOfMeasure++
-
-					// next measure
-						if (STATE.playback.currentTickOfMeasure >= STATE.music.measureTicks[String(STATE.playback.currentMeasure)]) {
-							STATE.playback.currentTickOfMeasure = 0
-
-							// more measures?
-								if (STATE.playback.currentMeasure < lastMeasureNumber) {
-									STATE.playback.currentMeasure++
-									ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
-
-									// tempo changes
-										if (STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]) {
-											STATE.playback.tempo = STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]
-											STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
-											clearInterval(STATE.playback.loop)
-											STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
-										}
-
-									return
-								}
-
-							// end of last measure, but looping?
-								if (STATE.playback.looping) {
-									STATE.playback.currentMeasure = 1
-									ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
-
-									// tempo changes
-										if (STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]) {
-											STATE.playback.tempo = STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]
-											STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
-											clearInterval(STATE.playback.loop)
-											STATE.playback.loop = setInterval(playNextTick, STATE.playback.interval)
-										}
-
-									return
-								}
-									
-							// end music
-								clearInterval(STATE.playback.loop)
-								STATE.playback.loop = null
-								STATE.playback.playing = false
-								STATE.playback.currentMeasure = 1
-								STATE.playback.currentTickOfMeasure = 0
-
-								ELEMENTS.header.play.checked = false
-								ELEMENTS.header.measuresCurrent.value = 1
-						}
+				// next
+					if (incrementTick()) {
+						incrementTick()
+					}
 			} catch (error) {console.log(error)}
 		}
 
+	/* playMetronome */
+		function playMetronome() {
+			try {
+				// no metronome
+					if (!AUDIO_J.instruments._metronome) {
+						return
+					}
+
+				// click
+					AUDIO_J.instruments._metronome.press(CONSTANTS.metronome.frequency)
+					setTimeout(function() {
+						AUDIO_J.instruments._metronome.kill(CONSTANTS.metronome.frequency)
+					}, CONSTANTS.metronome.sustain)
+			} catch (error) {console.log(error)}
+		}
+
+	/* playPart */
+		function playPart(partId) {
+			try {
+				// part
+					const partJSON = STATE.music.parts[partId]
+
+				// get measure
+					const measure = partJSON.staves["1"][String(STATE.playback.currentMeasure)]
+					if (!measure) {
+						return
+					}
+
+				// dynamics
+					if (measure.dynamics) {
+						STATE.playback.partDynamics[partId] = measure.dynamics
+					}
+
+				// get synth
+					const synth = AUDIO_J.instruments[partId]
+					if (!synth) {
+						return
+					}
+
+				// get notes for this beat
+					if (!measure.notes) {
+						return
+					}
+					const beatNotes = measure.notes[STATE.playback.currentTickOfMeasure] || null
+					if (!beatNotes) {
+						return
+					}
+				
+				// notes
+					for (let n in beatNotes) {
+						const frequency = AUDIO_J.getNote(n)[0]
+						synth.press(frequency, STATE.playback.partDynamics[partId])
+						synth.lift(frequency, STATE.playback.interval * Math.max(1, (beatNotes[n] - 1)))
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* incrementTick */
+		function incrementTick() {
+			try {
+				// get last measure
+					const lastMeasureNumber = Object.keys(STATE.music.measureTicks).length
+
+				// increment tick --> swing
+					let again = false
+					if (STATE.playback.swing) {
+						const currentTickOfBeat = STATE.playback.currentTickOfMeasure % CONSTANTS.ticksPerBeat
+						if (CONSTANTS.swingBeats.halfBeats.includes(currentTickOfBeat)) { 
+							STATE.playback.currentTickOfMeasure += 0.5
+						}
+						else {
+							STATE.playback.currentTickOfMeasure += 1
+
+							if (CONSTANTS.swingBeats.doubleBeats.includes(currentTickOfBeat)) {
+								again = true
+							}
+						}
+					}
+					else {
+						STATE.playback.currentTickOfMeasure += 1
+					}
+
+				// next measure
+					if (STATE.playback.currentTickOfMeasure >= STATE.music.measureTicks[String(STATE.playback.currentMeasure)]) {
+						STATE.playback.currentTickOfMeasure = 0
+
+						// more measures?
+							if (STATE.playback.currentMeasure < lastMeasureNumber) {
+								STATE.playback.currentMeasure++
+								ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+							}
+
+						// end of last measure, but looping?
+							else if (STATE.playback.looping) {
+								STATE.playback.currentMeasure = 1
+								ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+							}
+
+						// end
+							else {
+								resetPlayback()
+								return false
+							}
+
+						// still playing --> check for tempo changes
+							if (STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]) {
+								STATE.playback.tempo = STATE.music.tempoChanges[String(STATE.playback.currentMeasure)]
+								STATE.playback.interval = Math.round(CONSTANTS.minute / CONSTANTS.ticksPerBeat / (STATE.playback.tempo * STATE.playback.tempoMultiplier))
+								clearInterval(STATE.playback.loop)
+								STATE.playback.loop = setInterval(playTick, STATE.playback.interval)
+							}
+					}
+
+				// again (for swing)
+					return again
+			} catch (error) {console.log(error)}
+		}
+
+	/* resetPlayback */
+		function resetPlayback() {
+			try {
+				// stop loop
+					clearInterval(STATE.playback.loop)
+					STATE.playback.loop = null
+					STATE.playback.playing = false
+					ELEMENTS.header.play.checked = false
+
+				// back to 0
+					STATE.playback.partDynamics = {}
+					STATE.playback.currentTickOfMeasure = 0
+					ELEMENTS.content.element.removeAttribute("playing")
+				
+				// stop instrument
+					if (AUDIO_J.audio) {
+						for (let p in STATE.music.parts) {
+							if (AUDIO_J.instruments[p] && STATE.selected.partId !== p) {
+								AUDIO_J.instruments[p].setParameters({power: 0})
+							}
+						}
+					}
+			} catch (error) {console.log(error)}
+		}

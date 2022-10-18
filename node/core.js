@@ -249,7 +249,6 @@
 								title:        "untitled",
 								composer:     "",
 								swing:        false,
-								totalTicks:   0,
 								measureTicks: {},
 								tempoChanges: {},
 								synths:       {},
