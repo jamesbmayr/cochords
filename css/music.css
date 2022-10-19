@@ -956,11 +956,14 @@
 				user-select: none;
 				padding: 0;
 				font-size: 0;
+				color: var(--dark-gray);
 			}
 
 			button.part-measure-note:focus, button.part-measure-note:hover {
 				box-shadow: none;
 				filter: none;
+				color: var(--light-gray) !important;
+				text-shadow: 0 0 var(--border-size) var(--dark-gray) !important;
 			}
 
 			.part-measure-note[selected] {
@@ -969,12 +972,16 @@
 				box-shadow: 0 0 0 var(--border-size) var(--light-blue) !important;
 			}
 
+			button.part-measure-note[playing] {
+				background: var(--dark-gray) !important;
+				box-shadow: 0 0 0 var(--border-size) var(--light-blue) !important;
+			}
+
 			.part-measure-note-text {
 				float: left;
 				width: calc(100% - var(--small-gap-size));
 				height: 100%;
 				padding: 0 0 0 calc(var(--pitch-height-modifier) * 1px);
-				color: var(--dark-gray);
 				font-size: calc(var(--pitch-height) * var(--pitch-height-modifier));
 				text-align: left;
 				line-height: 1;

@@ -430,7 +430,7 @@
 								defaultTicks: 96,
 								defaultTempo: 120,
 								defaultMeasureCount: 4,
-								defaultDynamics: 0.69,
+								defaultDynamics: 0.83,
 								defaultMidiChannel: 1,
 								defaultMidiProgram: 1,
 								defaultInstrument: "Acoustic Grand Piano",
