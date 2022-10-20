@@ -1059,3 +1059,82 @@
 				width: 100%;
 				background: var(--medium-blue);
 			}
+
+/*** help ***/
+	#help {
+		z-index: 10;
+		position: fixed;
+		bottom: var(--medium-gap-size);
+		right: var(--medium-gap-size);
+		height: auto;
+		width: auto;
+	}
+
+	#help-button {
+		position: fixed;
+		bottom: var(--medium-gap-size);
+		right: var(--medium-gap-size);
+		height: var(--large-font-size);
+		width: var(--large-font-size);
+		border-radius: 100%;
+		box-sizing: border-box;
+		background: var(--medium-blue);
+		color: var(--light-gray);
+		text-align: center;
+		font-family: var(--font-0);
+		font-size: var(--medium-font-size);
+		line-height: 1.5;
+		padding: var(--border-size);
+		font-weight: bold;
+		transition: var(--transition-time);
+	}
+
+	#help[open] #help-button {
+		border-radius: 0 0 50% 50%;
+		box-shadow: 0 0 0 var(--border-size) var(--light-blue);
+		filter: brightness(var(--hover-brightness));
+	}
+
+	#help-content {
+		opacity: 0.9;
+		position: fixed;
+		bottom: calc(var(--medium-gap-size) + var(--large-font-size));
+		right: var(--medium-gap-size);
+		height: auto;
+		height: calc(100vh - 2 * var(--medium-gap-size) - var(--large-font-size));
+		width: calc(2 * var(--left-column-size));
+		background: var(--dark-gray);
+		padding: var(--medium-gap-size) var(--small-gap-size) var(--large-gap-size) var(--small-gap-size);
+		box-sizing: border-box;
+		box-shadow: 0 0 0 var(--border-size) var(--light-blue);
+		border-radius: var(--border-radius) var(--border-radius) 0 var(--border-radius);
+		filter: brightness(var(--hover-brightness));
+		line-height: 1.2;
+		font-family: var(--font-0);
+		color: var(--light-gray);
+		overflow-x: hidden;
+		overflow-y: scroll;
+	}
+
+	#help-content div {
+		text-align: center;
+		font-size: var(--medium-font-size);
+		margin: var(--large-gap-size) 0 var(--small-gap-size) 0;
+	}
+
+	#help-content div:first-child {
+		margin-top: 0;
+	}
+
+	#help-content li {
+		text-align: left;
+		font-size: var(--small-font-size);
+	}
+
+	#help-content li::marker {
+		content: " - ";
+	}
+
+	#help-content li a {
+		font-size: var(--small-font-size);
+	}

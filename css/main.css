@@ -224,12 +224,13 @@
 			text-decoration: none;
 			cursor: pointer;
 			vertical-align: bottom;
+			transition: var(--transition-time);
 		}
 
 		a:hover, a:focus {
 			color: var(--light-blue);
 			filter: brightness(var(--hover-brightness));
-			box-shadow: 0 0 0 var(--border-size) var(--light-blue);
+			text-shadow: 0 0 var(--shadow-size) var(--light-blue);
 		}
 
 	/* label */

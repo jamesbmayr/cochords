@@ -49,7 +49,7 @@
 
 	/* constants */
 		const CONSTANTS = {
-			second: 1000, // s
+			second: 1000, // ms
 			minute: 1000 * 60, // ms
 			pingLoop: 1000 * 60, // ms
 			leftColumnWidth: 200, // px
@@ -69,7 +69,7 @@
 				synth: "ensnarl",
 				volume: 0.2, // ratio
 				frequency: 440, // Hz
-				sustain: 250, // ms
+				sustain: 200, // ms
 			},
 			keyboard: {
 				arrowdown: 40,
@@ -183,11 +183,12 @@
 				held: false,
 				measureNumber: null,
 				ticksFromLeft: null,
-				pitchesFromTop: null
+				pitchesFromTop: null,
+				element: null
 			},
 			selected: {
 				partId: null,
-				notes: []
+				notes: {}
 			},
 			keyboard: {
 				arrowdown: false,
@@ -220,7 +221,7 @@
 			}
 		}
 
-	/* keyboard interaction */
+	/* keys */
 		window.addEventListener(TRIGGERS.keydown, pressKey)
 		function pressKey(event) {
 			try {
@@ -237,59 +238,8 @@
 					}
 
 				// note editing
-					if (document.activeElement && document.activeElement.closest(".part-measure-notes")) {
-						// escape --> revert
-							if (event.which == CONSTANTS.keyboard.escape) {
-								revertSelectedNotes()
-								return
-							}
-
-						// enter --> submit
-							if (event.which == CONSTANTS.keyboard.enter) {
-								unselectNotes()
-								return
-							}
-
-						// delete/backspace --> delete
-							if (event.which == CONSTANTS.keyboard.delete || event.which == CONSTANTS.keyboard.backspace) {
-								deleteNotes()
-								return
-							}
-
-						// space --> toggle selection
-							if (event.which == CONSTANTS.keyboard.space && document.activeElement.className == "part-measure-note") {
-								if (document.activeElement.getAttribute("selected")) {
-									unselectNote(document.activeElement)
-								}
-								else {
-									selectNote(document.activeElement)
-								}
-								return
-							}
-
-						// arrow up & down --> pitch up & down
-							if (event.which == CONSTANTS.keyboard.arrowup) {
-								moveNotes(null, null, STATE.keyboard.shift ? CONSTANTS.pitchesPerOctave : 1)
-								event.preventDefault()
-								return
-							}
-							if (event.which == CONSTANTS.keyboard.arrowdown) {
-								moveNotes(null, null, STATE.keyboard.shift ? -CONSTANTS.pitchesPerOctave : -1)
-								event.preventDefault()
-								return
-							}
-
-						// arrow left & right --> tick left & right (shift for duration change)
-							if (event.which == CONSTANTS.keyboard.arrowleft) {
-								moveNotes(null, STATE.keyboard.shift ? -CONSTANTS.ticksPerBeat : -1, 0, false, STATE.keyboard.optalt)
-								event.preventDefault()
-								return
-							}
-							if (event.which == CONSTANTS.keyboard.arrowright) {
-								moveNotes(null, STATE.keyboard.shift ? CONSTANTS.ticksPerBeat : 1, 0, false, STATE.keyboard.optalt)
-								event.preventDefault()
-								return
-							}
+					if (Object.keys(STATE.selected.notes).length || document.activeElement && document.activeElement.closest(".part-measure-notes")) {
+						pressKeyWithinMeasure(event.which)
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -311,7 +261,6 @@
 								STATE.keyboardListeners[i](keyboardHeldData)
 								delete STATE.keyboardListeners[i]
 							}
-							
 						}
 					}
 			} catch (error) {console.log(error)}
@@ -903,6 +852,9 @@
 						return
 					}
 
+				// start --> revert any selected notes
+					revertNotes()
+
 				// tempo
 					let currentTempo = CONSTANTS.defaultTempo
 					for (let t in STATE.music.tempoChanges) {
@@ -1461,7 +1413,7 @@
 				// previously selected but not now --> put notes back
 					if (wasSelected && (partId !== STATE.selected.partId)) {
 						// selected notes --> unselect & cancel
-							revertSelectedNotes()
+							revertNotes()
 
 						// active instrument						
 							AUDIO_J.activeInstrumentId = null
@@ -1751,7 +1703,7 @@
 					const notesContainer = document.createElement("div")
 						notesContainer.className = "part-measure-notes"
 						notesContainer.addEventListener(TRIGGERS.mousedown, downMouseOnContainer)
-						notesContainer.addEventListener(TRIGGERS.doubleclick, addNote)
+						notesContainer.addEventListener(TRIGGERS.doubleclick, doubleclickOnContainer)
 					measure.appendChild(notesContainer)
 
 				// dynamics input
@@ -1813,7 +1765,6 @@
 								noteElement.setAttribute("actual-pitch", p)
 								noteElement.setAttribute("duration", pitches[p])
 								noteElement.setAttribute("actual-duration", pitches[p])
-								noteElement.addEventListener(TRIGGERS.contextmenu, rightClickOnNote)
 								noteElement.addEventListener(TRIGGERS.mousedown, downMouseOnNote)
 								noteElement.setAttribute("quasi-tabbable", true)
 								if (partId !== STATE.selected.partId) {
@@ -2120,15 +2071,361 @@
 			} catch (error) {console.log(error)}
 		}
 
-/*** notes ***/	
+/*** notes - editing ***/
 	/* addNote */
-		function addNote(event) {
+		function addNote(note) {
 			try {
-				// something else selected
-					if (STATE.selected.notes.length) {
+				// playing
+					if (STATE.playback.playing) {
 						return
 					}
 
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// something else selected
+					if (Object.keys(STATE.selected.notes).length) {
+						return
+					}
+
+				// sound
+					if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
+						const frequency = AUDIO_J.getNote(note.pitch)[0]
+						AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
+						AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "addPartMeasureNote",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: STATE.selected.partId,
+						note: note
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* selectNotes */
+		function selectNotes(notes) {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
+				// loop through to find elements
+					for (let n in notes) {
+						const id = notes[n].measureNumber + "." + notes[n].tick + ":" + notes[n].pitch
+						
+						const noteElement = notes[n].element || ELEMENTS.content.parts[partId].measures[notes[n].measureNumber].notesContainer.querySelector("[actual-tick='" + notes[n].tick + "'][actual-pitch='" + notes[n].pitch + "'][actual-duration='" + notes[n].duration + "']")
+							noteElement.setAttribute("selected", true)
+							noteElement.setAttribute("interim-tick", notes[n].tick)
+							noteElement.setAttribute("interim-pitch", notes[n].pitch)
+							noteElement.setAttribute("interim-duration", notes[n].duration)
+							noteElement.focus()
+						
+						STATE.selected.notes[id] = {
+							id: id,
+							element: noteElement,
+							measureNumber: notes[n].measureNumber,
+							tick: notes[n].tick,
+							pitch: notes[n].pitch,
+							duration: notes[n].duration,
+							end: notes[n].end || false
+						}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* unselectNotes */
+		function unselectNotes(notes) {
+			try {
+				// no notes?
+					notes = notes || STATE.selected.notes
+					if (!Object.keys(notes).length) {
+						return
+					}
+
+				// loop through to find elements
+					for (let n in notes) {
+						const noteElement = notes[n].element
+						if (noteElement) {
+							noteElement.removeAttribute("selected")
+							noteElement.removeAttribute("interim-tick")
+							noteElement.removeAttribute("interim-pitch")
+							noteElement.removeAttribute("interim-duration")
+						}
+						delete STATE.selected.notes[notes[n].id]
+					}
+
+				// clear state
+					if (!Object.keys(STATE.selected.notes).length) {
+						document.activeElement.blur()
+						ELEMENTS.body.focus()
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* moveNotes */
+		function moveNotes(notes, options) {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
+				// no notes?
+					notes = notes || STATE.selected.notes
+					if (!Object.keys(notes).length) {
+						return
+					}
+
+				// options
+					options = {
+						ticksChange: options.ticksChange || 0,
+						pitchesChange: options.pitchesChange || 0,
+						forceEnd: options.forceEnd || false,
+						forceStart: options.forceStart || false,
+						relativeToInterim: options.relativeToInterim
+					}
+
+				// no change
+					if (!options.ticksChange && !options.pitchesChange) {
+						return
+					}
+
+				// stop waiting for cursor lift
+					STATE.cursor.element = null
+
+				// loop through notes
+					for (let n in notes) {
+						// note
+							const thisNoteElement = notes[n].element
+							const previousTick = Number(thisNoteElement.getAttribute("tick"))
+							const previousPitch = Number(thisNoteElement.getAttribute("pitch"))
+							const previousDuration = Number(thisNoteElement.getAttribute("duration"))
+
+							const interimTick = Number(thisNoteElement.getAttribute("interim-tick"))
+							const interimPitch = Number(thisNoteElement.getAttribute("interim-pitch"))
+							const interimDuration = Number(thisNoteElement.getAttribute("interim-duration"))
+
+						// end
+							if (!options.forceStart && (notes[n].end || options.forceEnd)) {
+								const newDuration = Math.max(CONSTANTS.minimumDuration, (options.relativeToInterim ? interimDuration : previousDuration) + options.ticksChange)
+								thisNoteElement.setAttribute("duration", newDuration)
+								thisNoteElement.style.width = "calc(var(--tick-width) * " + newDuration + ")"
+
+								if (!options.relativeToInterim) {
+									thisNoteElement.setAttribute("interim-duration", newDuration)
+								}
+								continue
+							}
+
+						// info
+							const newTick = (options.relativeToInterim ? interimTick : previousTick) + options.ticksChange
+							const newPitch = Math.max(CONSTANTS.lowestPitch, Math.min(CONSTANTS.highestPitch, (options.relativeToInterim ? interimPitch : previousPitch) + options.pitchesChange))
+							const noteInfo = MUSICXML_J.constants.notes[newPitch]
+							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
+							const noteColor = CONSTANTS.midiToColor[newPitch] || "var(--dark-gray)"
+
+						// element
+							thisNoteElement.setAttribute("tick", newTick)
+							thisNoteElement.setAttribute("pitch", newPitch)
+							thisNoteElement.style.background = noteColor
+							thisNoteElement.style.marginLeft = "calc(var(--tick-width) * " + newTick + ")"
+							thisNoteElement.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - newPitch) + ")"
+							thisNoteElement.querySelector(".part-measure-note-text").innerText = noteName
+
+							if (!options.relativeToInterim) {
+								thisNoteElement.setAttribute("interim-tick", newTick)
+								thisNoteElement.setAttribute("interim-pitch", newPitch)
+							}
+
+						// sound
+							if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId] && newPitch !== previousPitch) {
+								const frequency = AUDIO_J.getNote(newPitch)[0]
+								AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
+								AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
+							}
+					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* revertNotes */
+		function revertNotes(notes) {
+			try {
+				// no notes?
+					notes = notes || STATE.selected.notes
+					if (!Object.keys(notes).length) {
+						return
+					}
+
+				// loop through
+					for (let n in notes) {
+						// revert to original state
+							notes[n].element.setAttribute("tick", notes[n].tick)
+							notes[n].element.setAttribute("pitch", notes[n].pitch)
+							notes[n].element.setAttribute("duration", notes[n].duration)
+
+						// get info
+							const noteInfo = MUSICXML_J.constants.notes[notes[n].pitch]
+							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
+							const noteColor = CONSTANTS.midiToColor[notes[n].pitch] || "var(--dark-gray)"
+
+						// restyle & move
+							notes[n].element.style.marginLeft = "calc(var(--tick-width) * " + notes[n].tick + ")"
+							notes[n].element.style.width = "calc(var(--tick-width) * " + notes[n].duration + ")"
+							notes[n].element.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - notes[n].pitch) + ")"
+							notes[n].element.style.background = noteColor
+							notes[n].element.querySelector(".part-measure-note-text").innerText = noteName
+					}
+
+				// remove from selection
+					unselectNotes(notes)
+			} catch (error) {console.log(error)}
+		}
+
+	/* deleteNotes */
+		function deleteNotes(notes) {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
+				// no notes?
+					notes = notes || STATE.selected.notes
+					if (!Object.keys(notes).length) {
+						return
+					}
+
+				// update to do
+					const deletedNotes = []
+				
+				// loop through
+					for (let n in notes) {
+						const deletedNote = {
+							measureNumber: notes[n].measureNumber,
+							tick: notes[n].tick,
+							pitch: notes[n].pitch,
+							duration: notes[n].duration
+						}
+						deletedNotes.push(deletedNote)
+					}
+
+				// nothing to send?
+					if (!deletedNotes.length) {
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "deletePartMeasureNotes",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: STATE.selected.partId,
+						notes: deletedNotes
+					}))
+
+				// remove from selection
+					unselectNotes(notes)
+					revertNotes()
+			} catch (error) {console.log(error)}
+		}
+
+	/* updateNotes */
+		function updateNotes(notes) {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
+				// no notes?
+					notes = notes || STATE.selected.notes
+					if (!Object.keys(notes).length) {
+						return
+					}
+
+				// update to do
+					const updatedNotes = []
+				
+				// loop through
+					for (let n in notes) {
+						// identify updates
+							const updatedNote = {
+								measureNumber: notes[n].measureNumber,
+								noteBefore: {
+									tick: notes[n].tick,
+									pitch: notes[n].pitch,
+									duration: notes[n].duration
+								},
+								noteAfter: {
+									tick: Number(notes[n].element.getAttribute("tick")),
+									pitch: Number(notes[n].element.getAttribute("pitch")),
+									duration: Number(notes[n].element.getAttribute("duration"))
+								}
+							}
+
+						// no updates
+							if (updatedNote.noteBefore.tick     !== updatedNote.noteAfter.tick  ||
+								updatedNote.noteBefore.pitch    !== updatedNote.noteAfter.pitch ||
+								updatedNote.noteBefore.duration !== updatedNote.noteAfter.duration) {
+								updatedNotes.push(updatedNote)
+							}
+					}
+
+				// something to send?
+					if (updatedNotes.length) {
+						STATE.socket.send(JSON.stringify({
+							action: "updatePartMeasureNotes",
+							composerId: STATE.composerId,
+							musicId: STATE.music.id,
+							partId: STATE.selected.partId,
+							notes: updatedNotes
+						}))
+					}
+
+				// remove from selection
+					unselectNotes(notes)
+					revertNotes()
+			} catch (error) {console.log(error)}
+		}
+
+/*** notes - mouse ***/
+	/* setCursorState */
+		function setCursorState(event, note) {
+			try {
+				// none
+					if (!note) {
+						STATE.cursor.measureNumber = null
+						STATE.cursor.ticksFromLeft = null
+						STATE.cursor.pitchesFromTop = null
+						STATE.cursor.element = null
+						return
+					}
+
+				// measure
+					const measureElement = ELEMENTS.content.parts[STATE.selected.partId].measures[note.measureNumber].notesContainer
+					const measureRect = measureElement.getBoundingClientRect()
+
+				// cursor coordinates
+					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
+					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
+
+				// info
+					STATE.cursor.measureNumber = note.measureNumber
+					STATE.cursor.ticksFromLeft = Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth)
+					STATE.cursor.pitchesFromTop = Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight)
+			} catch (error) {console.log(error)}
+		}
+
+	/* doubleclickOnContainer */
+		function doubleclickOnContainer(event) {
+			try {
 				// get current position
 					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
 					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
@@ -2152,352 +2449,78 @@
 						pitch: CONSTANTS.highestPitch - pitchesFromTop,
 						duration: CONSTANTS.ticksPerBeat
 					}
-
-				// sound
-					if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
-						const frequency = AUDIO_J.getNote(note.pitch)[0]
-						AUDIO_J.instruments[STATE.selected.partId].press(frequency)
-						AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.second)
-					}
-
-				// send to server
-					STATE.socket.send(JSON.stringify({
-						action: "addPartMeasureNote",
-						composerId: STATE.composerId,
-						musicId: STATE.music.id,
-						partId: STATE.selected.partId,
-						note: note
-					}))
-			} catch (error) {console.log(error)}
-		}
-
-	/* selectNote */
-		function selectNote(noteElement, isEnd) {
-			try {
-				// element
-					let alreadyExists = true
-					let selectedNote = STATE.selected.notes.find(function(note) {
-						return note.element == noteElement
-					}) || null
-
-					if (!selectedNote) {
-						alreadyExists = false
-						selectedNote = {
-							element: noteElement,
-							measureNumber: noteElement.closest(".part-measure").getAttribute("measure"),
-						}
-					}
-
-				// is end
-					selectedNote.end = isEnd || false
-
-				// attributes
-					selectedNote.element.setAttribute("selected", true)
-
-				// add to selection
-					if (!alreadyExists) {
-						STATE.selected.notes.push(selectedNote)
-					}
-
-				// return
-					return selectedNote
-			} catch (error) {console.log(error)}
-		}
-
-	/* revertSelectedNotes */
-		function revertSelectedNotes() {
-			try {
-				// loop through
-					for (let n in STATE.selected.notes) {
-						// get element & original state
-							const noteElement = STATE.selected.notes[n].element
-						
-							const originalTick = Number(noteElement.getAttribute("actual-tick"))
-							const originalPitch = Number(noteElement.getAttribute("actual-pitch"))
-							const originalDuration = Number(noteElement.getAttribute("actual-duration"))
-						
-						// revert to original state
-							noteElement.setAttribute("tick", originalTick)
-							noteElement.setAttribute("pitch", originalPitch)
-							noteElement.setAttribute("duration", originalDuration)
-
-						// get info
-							const noteInfo = MUSICXML_J.constants.notes[originalPitch]
-							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
-							const noteColor = CONSTANTS.midiToColor[originalPitch] || "var(--dark-gray)"
-
-						// restyle & move
-							noteElement.style.marginLeft = "calc(var(--tick-width) * " + originalTick + ")"
-							noteElement.style.width = "calc(var(--tick-width) * " + originalDuration + ")"
-							noteElement.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - originalPitch) + ")"
-							noteElement.style.background = noteColor
-							noteElement.querySelector(".part-measure-note-text").innerText = noteName
-							noteElement.removeAttribute("selected")
-					}
-
-				// clear state
-					document.activeElement.blur()
-					ELEMENTS.body.focus()
-					STATE.selected.notes = []
-			} catch (error) {console.log(error)}
-		}
-
-	/* deleteNotes */
-		function deleteNotes(notes) {
-			try {
-				// no notes?
-					notes = notes || STATE.selected.notes
-					if (!notes.length) {
-						return
-					}
-
-				// update to do
-					const deletedNotes = []
-				
-				// loop through
-					for (let n in notes) {
-						const deletedNote = {
-							measureNumber: notes[n].measureNumber,
-							tick: Number(notes[n].element.getAttribute("actual-tick")),
-							pitch: Number(notes[n].element.getAttribute("actual-pitch")),
-							duration: Number(notes[n].element.getAttribute("actual-duration"))
-						}
-						deletedNotes.push(deletedNote)
-					}
-
-				// nothing to send?
-					if (!deletedNotes.length) {
-						return
-					}
-
-				// send to server
-					STATE.socket.send(JSON.stringify({
-						action: "deletePartMeasureNotes",
-						composerId: STATE.composerId,
-						musicId: STATE.music.id,
-						partId: STATE.selected.partId,
-						notes: deletedNotes
-					}))
-
-				// refocus
-					ELEMENTS.body.focus()
-			} catch (error) {console.log(error)}
-		}
-
-	/* moveNotes */
-		function moveNotes(notes, ticksChange, pitchesChange, fromOriginal, endOverride) {
-			try {
-				// no notes?
-					notes = notes || STATE.selected.notes
-					if (!notes.length) {
-						return
-					}
-
-				// loop through notes
-					for (let n in notes) {
-						// note
-							const thisNote = notes[n]
-							const thisNoteElement = notes[n].element
-
-						// previous data
-							const originalPitch = Number(thisNoteElement.getAttribute("actual-pitch"))
-							const originalTick = Number(thisNoteElement.getAttribute("actual-tick"))
-							const originalDuration = Number(thisNoteElement.getAttribute("actual-duration"))
-							const previousPitch = Number(thisNoteElement.getAttribute("pitch"))
-							const previousTick = Number(thisNoteElement.getAttribute("tick"))
-							const previousDuration = Number(thisNoteElement.getAttribute("duration"))
-
-						// end
-							if (thisNote.end || endOverride) {
-								const newDuration = Math.max(CONSTANTS.minimumDuration, (fromOriginal ? originalDuration : previousDuration) + ticksChange)
-								thisNoteElement.setAttribute("duration", newDuration)
-								thisNoteElement.style.width = "calc(var(--tick-width) * " + newDuration + ")"
-								continue
-							}
-
-						// info
-							const newTick = (fromOriginal ? originalTick : previousTick) + ticksChange
-							const newPitch = Math.max(CONSTANTS.lowestPitch, Math.min(CONSTANTS.highestPitch, (fromOriginal ? originalPitch : previousPitch) + pitchesChange))
-							const noteInfo = MUSICXML_J.constants.notes[newPitch]
-							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
-							const noteColor = CONSTANTS.midiToColor[newPitch] || "var(--dark-gray)"
-
-						// element
-							thisNoteElement.setAttribute("tick", newTick)
-							thisNoteElement.setAttribute("pitch", newPitch)
-							thisNoteElement.style.background = noteColor
-							thisNoteElement.style.marginLeft = "calc(var(--tick-width) * " + newTick + ")"
-							thisNoteElement.style.marginTop = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - newPitch) + ")"
-							thisNoteElement.querySelector(".part-measure-note-text").innerText = noteName
-
-						// sound
-							if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId] && newPitch !== previousPitch) {
-								const frequency = AUDIO_J.getNote(newPitch)[0]
-								AUDIO_J.instruments[STATE.selected.partId].press(frequency)
-								AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.second)
-							}
-					}
-			} catch (error) {console.log(error)}
-		}
-
-	/* unselectNote */
-		function unselectNote(noteElement) {
-			try {
-				// get note
-					let selectedNote = STATE.selected.notes.find(function(note) {
-						return note.element == noteElement
-					}) || null
-
-				// unselect
-					unselectNotes([selectedNote])
-			} catch (error) {console.log(error)}
-		}
-
-	/* unselectNotes */
-		function unselectNotes(notes) {
-			try {
-				// no notes?
-					notes = notes || STATE.selected.notes
-					if (!notes.length) {
-						return
-					}
-
-				// update to do
-					const updatedNotes = []
-				
-				// loop through
-					for (let n in notes) {
-						// identify updates
-							const updatedNote = {
-								measureNumber: notes[n].measureNumber,
-								noteBefore: {
-									tick: Number(notes[n].element.getAttribute("actual-tick")),
-									pitch: Number(notes[n].element.getAttribute("actual-pitch")),
-									duration: Number(notes[n].element.getAttribute("actual-duration"))
-								},
-								noteAfter: {
-									tick: Number(notes[n].element.getAttribute("tick")),
-									pitch: Number(notes[n].element.getAttribute("pitch")),
-									duration: Number(notes[n].element.getAttribute("duration"))
-								}
-							}
-
-						// no updates
-							if (updatedNote.noteBefore.tick     !== updatedNote.noteAfter.tick  ||
-								updatedNote.noteBefore.pitch    !== updatedNote.noteAfter.pitch ||
-								updatedNote.noteBefore.duration !== updatedNote.noteAfter.duration) {
-								updatedNotes.push(updatedNote)
-							}
-
-						// remove from selection
-							notes[n].element.removeAttribute("selected")
-							STATE.selected.notes = STATE.selected.notes.filter(function(s) {
-								return s.element !== notes[n].element
-							}) || []
-					}
-
-				// nothing to send?
-					if (!updatedNotes.length) {
-						return notes[notes.length - 1]
-					}
-
-				// send to server
-					STATE.socket.send(JSON.stringify({
-						action: "updatePartMeasureNotes",
-						composerId: STATE.composerId,
-						musicId: STATE.music.id,
-						partId: STATE.selected.partId,
-						notes: updatedNotes
-					}))
-
-				// return last one
-					if (STATE.selected.notes.length) {
-						STATE.selected.notes[STATE.selected.notes.length - 1].element.focus()
-					}
-					else {
-						document.activeElement.blur()
-						ELEMENTS.body.focus()
-					}
-					return notes[notes.length - 1]
-			} catch (error) {console.log(error)}
-		}
-
-	/* setCursorState */
-		function setCursorState(cursorX, cursorY, note) {
-			try {
-				// none
-					if (!note) {
-						STATE.cursor.measureNumber = null
-						STATE.cursor.ticksFromLeft = null
-						STATE.cursor.pitchesFromTop = null
-						return
-					}
-
-				// measure
-					const measureElement = ELEMENTS.content.parts[STATE.selected.partId].measures[note.measureNumber].notesContainer
-					const measureRect = measureElement.getBoundingClientRect()
-
-				// info
-					STATE.cursor.measureNumber = note.measureNumber
-					STATE.cursor.ticksFromLeft = Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth)
-					STATE.cursor.pitchesFromTop = Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight)
+					addNote(note)
 			} catch (error) {console.log(error)}
 		}
 
 	/* downMouseOnNote */
 		function downMouseOnNote(event) {
 			try {
-				// right-click
-					if (event.button == 2 || event.ctrlKey) {
+				// prevent default
+					event.preventDefault()
+
+				// note element
+					const noteElement = event.target.closest(".part-measure-note")
+					const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
+					const isEnd = (event.target.className == "part-measure-note-end") || false
+
+				// part id
+					const partId = noteElement.closest(".part-row").getAttribute("partid")
+					if (partId !== STATE.selected.partId) {
 						return
 					}
 
-				// part id
-					const noteElement = event.target.closest(".part-measure-note")
-					const partId = noteElement.closest(".part-row").getAttribute("partid")
-					if (partId !== STATE.selected.partId) {
+				// build note
+					const tick = Number(noteElement.getAttribute("actual-tick"))
+					const pitch = Number(noteElement.getAttribute("actual-pitch"))
+					const duration = Number(noteElement.getAttribute("actual-duration"))
+					const note = {
+						id: measureNumber + "." + tick + ":" + pitch,
+						element: noteElement,
+						measureNumber: measureNumber,
+						tick: tick,
+						pitch: pitch,
+						duration: duration,
+						end: isEnd
+					}
+
+				// right-click --> delete
+					if (event.button == 2 || event.ctrlKey) {
+						deleteNotes([note])
 						return
 					}
 
 				// hold mouse
 					STATE.cursor.held = true
 					event.stopPropagation()
-				
-				// get current position
-					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
-					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
 
-				// not holding shift
-					if (!STATE.keyboard.shift) {
-						// unselect everything else
-							if (STATE.selected.notes.length) {
-								const unselectedNotes = []
-								for (let n in STATE.selected.notes) {
-									if (STATE.selected.notes[n].element !== noteElement) {
-										unselectedNotes.push(STATE.selected.notes[n])
-									}
-								}
-								unselectNotes(unselectedNotes)
+				// cursor state
+					setCursorState(event, note)
+
+				// holding shift
+					if (STATE.keyboard.shift) {
+						// note selected --> wait for lift to unselect
+							if (STATE.selected.notes[note.id]) {
+								STATE.cursor.element = note.element
+								return
 							}
 
-						// select this one
-							const selectedNote = selectNote(noteElement, (event.target.className == "part-measure-note-end"))
-							setCursorState(cursorX, cursorY, selectedNote)
+						// note not selected --> add to selection
+							selectNotes([note])
 							return
 					}
 
-				// holding shift --> already selected? --> unselect
-					for (let n in STATE.selected.notes) {
-						if (STATE.selected.notes[n].element == noteElement) {
-							const unselectedNote = unselectNotes([STATE.selected.notes[n]])
-							setCursorState(cursorX, cursorY, unselectedNote)
+				// not holding shift
+					// note selected --> wait for lift to unselect
+						if (STATE.selected.notes[note.id]) {
+							STATE.cursor.element = note.element
 							return
 						}
-					}
 
-				// holding shift --> add to selection
-					const selectedNote = selectNote(noteElement, (event.target.className == "part-measure-note-end"))
-					setCursorState(cursorX, cursorY, selectedNote)
+					// note not selected --> make this the only selection
+						revertNotes()
+						selectNotes([note])
+						moveMouse(event)
 			} catch (error) {console.log(error)}
 		}
 
@@ -2505,7 +2528,7 @@
 		function moveMouse(event) {
 			try {
 				// nothing selected
-					if (!STATE.selected.partId || !STATE.selected.notes.length || !STATE.cursor.held) {
+					if (!STATE.selected.partId || !STATE.cursor.held || !Object.keys(STATE.selected.notes).length) {
 						return
 					}
 
@@ -2524,7 +2547,11 @@
 					const pitchesChange = STATE.cursor.pitchesFromTop - pitchesFromTop
 
 				// loop through and move
-					moveNotes(STATE.selected.notes, ticksChange, pitchesChange, true)
+					moveNotes(null, {
+						ticksChange: ticksChange,
+						pitchesChange: pitchesChange,
+						relativeToInterim: true
+					})
 			} catch (error) {console.log(error)}
 		}
 
@@ -2532,50 +2559,142 @@
 		function upMouse(event) {
 			try {
 				// right-click
-					if (event && (event.button == 2 || event.ctrlKey)) {
+					if (event.button == 2 || event.ctrlKey) {
 						return
+					}
+
+				// unselecting something
+					if (STATE.cursor.element) {
+						const noteElement = STATE.cursor.element.closest(".part-measure-note")
+						const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
+						const id = measureNumber + "." + noteElement.getAttribute("actual-tick") + ":" + noteElement.getAttribute("actual-pitch")
+						if (STATE.selected.notes[id]) {
+							revertNotes([STATE.selected.notes[id]])
+						}
+						STATE.cursor.element = null
+					}
+
+				// interim pitches
+					for (let n in STATE.selected.notes) {
+						const note = STATE.selected.notes[n]
+						note.element.setAttribute("interim-tick", note.element.getAttribute("tick"))
+						note.element.setAttribute("interim-pitch", note.element.getAttribute("pitch"))
+						note.element.setAttribute("interim-duration", note.element.getAttribute("duration"))
 					}
 
 				// release mouse
 					STATE.cursor.held = false
-					setCursorState()
-			} catch (error) {console.log(error)}
-		}
-
-	/* rightClickOnNote */
-		function rightClickOnNote(event) {
-			try {
-				// prevent creating a new one
-					event.preventDefault()
-
-				// part id
-					const noteElement = event.target.closest(".part-measure-note")
-					const partId = noteElement.closest(".part-row").getAttribute("partid")
-					if (partId !== STATE.selected.partId) {
-						return
-					}
-
-				// get note
-					const note = {
-						element: noteElement,
-						measureNumber: noteElement.closest(".part-measure").getAttribute("measure"),
-						end: false,
-						previousTick: Number(noteElement.getAttribute("tick")),
-						previousPitch: Number(noteElement.getAttribute("pitch")),
-						previousDuration: Number(noteElement.getAttribute("duration"))
-					}
-
-				// delete
-					deleteNotes([note])
 			} catch (error) {console.log(error)}
 		}
 
 	/* downMouseOnContainer */
 		function downMouseOnContainer(event) {
 			try {
-				// unselect notes
-					unselectNotes()
-					setCursorState()
+				// update notes
+					updateNotes()
+			} catch (error) {console.log(error)}
+		}
+
+/*** notes - keyboard ***/
+	/* pressKey */
+		function pressKeyWithinMeasure(key) {
+			try {
+				// escape --> revert
+					if (key == CONSTANTS.keyboard.escape) {
+						revertNotes()
+						event.preventDefault()
+						return
+					}
+
+				// enter --> submit
+					if (key == CONSTANTS.keyboard.enter) {
+						updateNotes()
+						event.preventDefault()
+						return
+					}
+
+				// delete/backspace --> delete
+					if (key == CONSTANTS.keyboard.delete || key == CONSTANTS.keyboard.backspace) {
+						deleteNotes()
+						event.preventDefault()
+						return
+					}
+
+				// space --> toggle selection
+					if (key == CONSTANTS.keyboard.space && document.activeElement.className == "part-measure-note") {
+						// note element
+							const noteElement = document.activeElement
+							const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
+							const tick = Number(noteElement.getAttribute("actual-tick"))
+							const pitch = Number(noteElement.getAttribute("actual-pitch"))
+							const duration = Number(noteElement.getAttribute("actual-duration"))
+
+						// part id
+							const partId = noteElement.closest(".part-row").getAttribute("partid")
+							if (partId !== STATE.selected.partId) {
+								return
+							}
+
+						// build note
+							const note = {
+								id: measureNumber + "." + tick + ":" + pitch,
+								element: noteElement,
+								measureNumber: measureNumber,
+								tick: tick,
+								pitch: pitch,
+								duration: duration,
+								end: false
+							}
+
+						// already selected
+							const id = note.measureNumber + "." + note.tick + ":" + note.pitch
+							if (STATE.selected.notes[id]) {
+								revertNotes([note])
+								event.preventDefault()
+								return
+							}
+						
+						// add to selection
+							selectNotes([note])
+							event.preventDefault()
+							return
+					}
+
+				// arrow up & down --> pitch up & down
+					if (key == CONSTANTS.keyboard.arrowup) {
+						moveNotes(null, {
+							pitchesChange: STATE.keyboard.shift ? CONSTANTS.pitchesPerOctave : 1
+						})
+						event.preventDefault()
+						return
+					}
+					if (key == CONSTANTS.keyboard.arrowdown) {
+						moveNotes(null, {
+							pitchesChange: STATE.keyboard.shift ? -CONSTANTS.pitchesPerOctave : -1
+						})
+						event.preventDefault()
+						return
+					}
+
+				// arrow left & right --> tick left & right (shift for duration change)
+					if (key == CONSTANTS.keyboard.arrowleft) {
+						moveNotes(null, {
+							ticksChange: STATE.keyboard.shift ? -CONSTANTS.ticksPerBeat : -1,
+							forceStart: STATE.keyboard.optalt ? false : true,
+							forceEnd: STATE.keyboard.optalt ? true : false
+						})
+						event.preventDefault()
+						return
+					}
+					if (key == CONSTANTS.keyboard.arrowright) {
+						moveNotes(null, {
+							ticksChange: STATE.keyboard.shift ? CONSTANTS.ticksPerBeat : 1,
+							forceStart: STATE.keyboard.optalt ? false : true,
+							forceEnd: STATE.keyboard.optalt ? true : false
+						})
+						event.preventDefault()
+						return
+					}
 			} catch (error) {console.log(error)}
 		}
 

@@ -93,5 +93,54 @@
 				</tbody>
 			</table>
 		</div>
+		<details id="help">
+			<summary id="help-button">?</summary>
+			<div id="help-content">
+				<div>CONTROLS</div>
+				<li>&darr;MUSIC: download musicXML of full score</li>
+				<li>SWING: ♫ syncopated (♪♪ &rarr; 3[♪♪]♪)</li>
+				<li>LOOP: music restarts immediately at the end</li>
+				<li>METRONOME: tick sound on ♩</li>
+				<li>SPEED &times;: bpm multiplier</li>
+				<li>&uarr;SYNTH: upload custom <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a></li>
+				<div>MEASURES</div>
+				<li>BARS: + to insert before, &times; to remove</li>
+				<li>BEATS: # ♩ quarter notes per measure</li>
+				<li>TEMPO: beats per minute, where ♩ is 1 beat</li>
+				<div>PARTS</div>
+				<li>EDIT: take over editing for that part</li>
+				<li>NAME: custom part name</li>
+				<li>MIDI: instrument name in MIDI standard</li>
+				<li>SYNTH: <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a> sound</li>
+				<li>MOVE&uarr;&darr;: reorder parts in the score</li>
+				<li>&#x1F508;: synth volume (separate from dynamics)</li>
+				<li>DYNAMICS: intensity changes below measures</li>
+				<div>NOTES</div>
+				<li>range: C1 - C7, semitones ascending vertically</li>
+				<li>background: white keys vs. black keys</li>
+				<li>beats: horizontal lines indicate the start of each ♩</li>
+				<li>ticks: each beat subdivides into 24 ticks</li>
+				<div>NOTES - MOUSE</div>
+				<li>double-click: create a note</li>
+				<li>click: select/unselect a note</li>
+				<li>shift-click: multi-select notes</li>
+				<li>right-click: delete note</li>
+				<li>drag: move notes to change pitch & beat</li>
+				<li>drag the right end-cap: change note duration</li>
+				<li>click off: submit changes</li>
+				<div>NOTES - KEYBOARD</div>
+				<li>tab: move through notes</li>
+				<li>space: select/unselect highlighted note</li>
+				<li>&uarr;&darr;: change pitch by 1 semitone</li>
+				<li>shift &uarr;&darr;: change pitch by 1 octave</li>
+				<li>&larr;&rarr;: change start beat by 1 tick</li>
+				<li>shift &larr;&rarr;: change by full beat</li>
+				<li>option/alt &larr;&rarr;: change duration by 1 tick</li>
+				<li>shift option/alt &larr;&rarr;: change duration by full beat</li>
+				<li>enter: submit changes</li>
+				<li>backspace/delete: delete selected notes</li>
+				<li>escape: revert selection to original pitches & beats</li>
+			</div>
+		</details>
 	</body>
 </html>
