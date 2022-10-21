@@ -777,12 +777,13 @@
 							musicJSON.swing = true
 						}
 
-						for (let m in musicJSON.parts[p].staves['1']) {
+						for (let m in musicJSON.parts[p].measures) {
 							if (!musicJSON.measureTicks[m]) {
-								musicJSON.measureTicks[m] = musicJSON.parts[p].staves['1'][m].ticks
+								musicJSON.measureTicks[m] = musicJSON.parts[p].measures[m].ticks
 							}
-							if (musicJSON.parts[p].staves['1'][m].tempo) {
-								musicJSON.tempoChanges[m] = musicJSON.parts[p].staves['1'][m].tempo
+							if (musicJSON.parts[p].measures[m].tempo) {
+								musicJSON.tempoChanges[m] = musicJSON.parts[p].measures[m].tempo
+								delete musicJSON.parts[p].measures[m].tempo
 							}
 						}
 					}
@@ -810,6 +811,7 @@
 						partJSON.midiChannel = Number((instrumentXML.querySelector("midi-channel") || {}).innerHTML || MUSICXML_J.constants.defaultMidiChannel)
 						partJSON.midiProgram = Number((instrumentXML.querySelector("midi-program") || {}).innerHTML)
 						partJSON.synth = getSynthType(partJSON.name || partJSON.instrument)
+						partJSON.measures = {}
 						partJSON.staves = {}
 						partJSON.currentTicksPerMeasure = 0
 						partJSON.currentTies = {}
@@ -824,6 +826,29 @@
 						parseMusicXMLMeasure(partJSON, String(Number(m) + 1), measuresXML[m])
 					}
 
+				// reduce staves
+					for (let s in partJSON.staves) {
+						for (let m in partJSON.staves[s]) {
+							if (!partJSON.measures[m]) {
+								partJSON.measures[m] = {notes: {}, ticks: partJSON.staves[s][m].ticks}
+							}
+							if (partJSON.staves[s][m].dynamics !== undefined) {
+								partJSON.measures[m].dynamics = partJSON.staves[s][m].dynamics
+							}
+							if (partJSON.staves[s][m].tempo !== undefined) {
+								partJSON.measures[m].tempo = partJSON.staves[s][m].tempo
+							}
+							for (let t in partJSON.staves[s][m]) {
+								if (!partJSON.measures[m][t]) {
+									partJSON.measures[m][t] = {}
+								}
+								for (let p in partJSON.staves[s][m][t]) {
+									partJSON.measures[m][t][p] = partJSON.staves[s][m][t][p]
+								}
+							}
+						}
+					}
+
 				// first measure
 					partJSON.swing = false
 					if (measuresXML[0] && !measuresXML[0].querySelector("sound swing straight") && measuresXML[0].querySelector("sound swing")) {
@@ -833,6 +858,7 @@
 				// delete temporary attributes
 					delete partJSON.currentTicksPerMeasure
 					delete partJSON.currentTies
+					delete partJSON.staves
 
 				// return
 					return partJSON

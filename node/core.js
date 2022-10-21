@@ -266,9 +266,7 @@
 								midiChannel: 0,
 								midiProgram: 0,
 								synth:       "",
-								staves: {
-									"1":     {}
-								}
+								measures:    {}
 							}
 						break
 

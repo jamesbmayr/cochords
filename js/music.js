@@ -1,5 +1,6 @@
 /*** globals ***/
 	/* triggers */
+		const ISMOBILE = (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i).test(navigator.userAgent)
 		const TRIGGERS = {
 			input: "input",
 			change: "change",
@@ -9,43 +10,15 @@
 			contextmenu: "contextmenu",
 			keydown: "keydown",
 			keyup: "keyup",
-			scroll: "scroll"
+			scroll: "scroll",
+			mousedown: ISMOBILE ? "touchstart" : "mousedown",
+			mouseup: ISMOBILE ? "touchend" : "mouseup",
+			mousemove: ISMOBILE ? "touchmove" : "mousemove"
 		}
 
-		setTriggers()
-		function setTriggers(override) {
-			try {
-				// get mobile right now
-					let ISMOBILE = override || (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i).test(navigator.userAgent)
-					TRIGGERS.mousedown = ISMOBILE ? "touchstart" : "mousedown"
-					TRIGGERS.mouseup   = ISMOBILE ? "touchend" : "mouseup"
-					TRIGGERS.mousemove = ISMOBILE ? "touchmove" : "mousemove"
-
-				// listen for move/drop
-					window.addEventListener(TRIGGERS.mousemove, moveMouse)
-					window.addEventListener(TRIGGERS.mouseup, upMouse)
-
-				// override mobile later
-					if (TRIGGERS.mousedown == "mousedown") {
-						window.addEventListener("touchstart", setTriggers)
-						return
-					}
-				
-				// overriding --> reset listeners
-					if (override) {
-						window.removeEventListener("touchstart", setTriggers)
-						window.removeEventListener("mousemove", moveMouse)
-						window.removeEventListener("mouseup", upMouse)
-					}
-			} catch (error) {console.log(error)}
-		}
-
-	/* double click / right-click */
-		document.addEventListener(TRIGGERS.doubleclick, preventDefault)
-		document.addEventListener(TRIGGERS.contextmenu, preventDefault)
-		function preventDefault(event) {
-			event.preventDefault()
-		}
+	// listen for move/drop
+		window.addEventListener(TRIGGERS.mousemove, moveMouse, {passive: false})
+		window.addEventListener(TRIGGERS.mouseup, upMouse)
 
 	/* constants */
 		const CONSTANTS = {
@@ -278,6 +251,7 @@
 				title: document.querySelector("#header-file-title"),
 				composer: document.querySelector("#header-file-composer"),
 				downloadMusicXML: document.querySelector("#header-file-download"),
+				sidebarCollapse: document.querySelector("#header-sidebar-collapse"),
 				swing: document.querySelector("#header-playback-swing"),
 				measuresCurrent: document.querySelector("#header-playback-measures-current"),
 				measuresTotal: document.querySelector("#header-playback-measures-total"),
@@ -288,7 +262,8 @@
 				uploadSynth: document.querySelector("#header-playback-upload-synth-input"),
 			},
 			content: {
-				element: document.querySelector("#content-outer"),
+				outer: document.querySelector("#content-outer"),
+				table: document.querySelector("#content"),
 				measuresContainer: document.querySelector("#content-measures"),
 				measures: {},
 				measuresSpacer: document.querySelector("#content-measures-spacer"),
@@ -679,6 +654,21 @@
 		}
 
 /*** header - playback ***/
+	/* toggleSidebar */
+		ELEMENTS.header.sidebarCollapse.addEventListener(TRIGGERS.click, toggleSidebar)
+		function toggleSidebar(event) {
+			try {
+				// open
+					if (ELEMENTS.content.outer.getAttribute("collapsed")) {
+						ELEMENTS.content.outer.removeAttribute("collapsed")
+						return
+					}
+
+				// collapse
+					ELEMENTS.content.outer.setAttribute("collapsed", true)
+			} catch (error) {console.log(error)}
+		}
+
 	/* receiveSwing */
 		function receiveSwing(swing) {
 			try {
@@ -740,7 +730,7 @@
 		}
 
 	/* setCurrentMeasure */
-		ELEMENTS.content.element.addEventListener(TRIGGERS.scroll, setCurrentMeasure)
+		ELEMENTS.content.outer.addEventListener(TRIGGERS.scroll, setCurrentMeasure)
 		function setCurrentMeasure(event) {
 			try {
 				// currentMeasure is active
@@ -833,12 +823,15 @@
 							STATE.playback.loop = null
 							STATE.playback.partDynamics = {}
 
-							ELEMENTS.content.element.removeAttribute("playing")
+							ELEMENTS.content.outer.removeAttribute("playing")
 
 						// silence parts
 							if (AUDIO_J.audio) {
 								for (let p in STATE.music.parts) {
-									if (AUDIO_J.instruments[p] && STATE.selected.partId !== p) {
+									if (AUDIO_J.instruments[p]) {
+										AUDIO_J.instruments[p].setParameters({power: 0})
+									}
+									if (STATE.selected.partId == p) {
 										AUDIO_J.instruments[p].setParameters({power: 0})
 									}
 								}
@@ -892,14 +885,15 @@
 							}
 
 						// dynamics
-							const measuresWithDynamics = Object.keys(STATE.music.parts[p].staves["1"]).filter(function(m) {
-								return (Number(m) <= STATE.playback.currentMeasure) && (STATE.music.parts[p].staves["1"][m].dynamics !== undefined)
-							}) || "1"
-							STATE.playback.partDynamics[p] = STATE.music.parts[p].staves["1"][measuresWithDynamics[measuresWithDynamics.length - 1]].dynamics
+							const measuresWithDynamics = Object.keys(STATE.music.parts[p].measures).filter(function(m) {
+								return (Number(m) <= STATE.playback.currentMeasure) && (STATE.music.parts[p].measures[m].dynamics !== undefined)
+							}) || null
+							
+							STATE.playback.partDynamics[p] = measuresWithDynamics ? STATE.music.parts[p].measures[measuresWithDynamics[measuresWithDynamics.length - 1]].dynamics : 0
 					}
 
 				// playback
-					ELEMENTS.content.element.setAttribute("playing", true)
+					ELEMENTS.content.outer.setAttribute("playing", true)
 					STATE.playback.loop = setInterval(playTick, STATE.playback.interval)
 			} catch (error) {console.log(error)}
 		}
@@ -1340,32 +1334,26 @@
 					}
 
 				// measures
-					if (!STATE.music.parts[partId].staves) {
-						STATE.music.parts[partId].staves = {}
-					}
-					for (let s in partJSON.staves) { // all parts are 1 staff
-						if (!STATE.music.parts[partId].staves[s]) {
-							STATE.music.parts[partId].staves[s] = {}
-						}
+					const measuresJSON = partJSON.measures
+					for (let m in measuresJSON) {
+						// delete
+							if (measuresJSON[m] === null) {
+								delete STATE.music.parts[partId].measures[m]
+								partObject.measures[m].element.remove()
+								delete partObject.measures[m]
+								continue
+							}
 
-						const measuresJSON = partJSON.staves[s]
-						for (let m in measuresJSON) {
-							// delete
-								if (measuresJSON[m] === null) {
-									delete STATE.music.parts[partId].staves[s][m]
-									partObject.measures[m].element.remove()
-									delete partObject.measures[m]
-									continue
-								}
+						// upsert
+							if (!STATE.music.parts[partId].measures) {
+								STATE.music.parts[partId].measures = {}
+							}
+							if (!partObject.measures[m]) {
+								STATE.music.parts[partId].measures[m] = {ticks: 0, notes: {}}
+								partObject.measures[m] = buildPartMeasure(partId, partObject.measuresContainer, partObject.spacer, m)
+							}
 
-							// upsert
-								if (!partObject.measures[m]) {
-									STATE.music.parts[partId].staves[s][m] = {ticks: 0, notes: {}}
-									partObject.measures[m] = buildPartMeasure(partId, partObject.measuresContainer, partObject.spacer, m)
-								}
-
-								receivePartMeasure(partId, partObject.measures[m], STATE.music.parts[partId].staves[s][m], measuresJSON[m])
-						}
+							receivePartMeasure(partId, m, partObject.measures[m], STATE.music.parts[partId].measures[m], measuresJSON[m])
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1420,6 +1408,7 @@
 							for (let t in tabbableElements) {
 								tabbableElements[t].removeAttribute("tabindex")
 							}
+							ELEMENTS.content.parts[partId].nameInput.removeAttribute("disabled")
 					}
 
 				// synth power
@@ -1440,6 +1429,7 @@
 							for (let t in tabbableElements) {
 								tabbableElements[t].setAttribute("tabindex", "-1")
 							}
+							ELEMENTS.content.parts[partId].nameInput.setAttribute("disabled", true)
 
 						// MIDI recording
 							STATE.selected.notesFromMidiInput.ongoing = {}
@@ -1449,7 +1439,7 @@
 		}
 
 	/* receivePartMeasure */
-		function receivePartMeasure(partId, measureObject, measureState, measureJSON) {
+		function receivePartMeasure(partId, measureNumber, measureObject, measureState, measureJSON) {
 			try {
 				// ticks
 					if (measureJSON.ticks !== undefined) {
@@ -1479,7 +1469,7 @@
 					measureObject.notesContainer.innerHTML = ""
 
 					for (let n in measureState.notes) {
-						buildMeasureNote(partId, measureObject.notesContainer, n, measureState.notes[n])
+						buildMeasureNote(partId, measureObject.notesContainer, measureNumber, n, measureState.notes[n])
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1552,6 +1542,7 @@
 								partName.addEventListener(TRIGGERS.change, updatePartName)
 								partName.setAttribute("quasi-tabbable", true)
 								partName.setAttribute("tabindex", "-1")
+								partName.setAttribute("disabled", true)
 							partNameLabel.appendChild(partName)
 
 					// instrument
@@ -1725,6 +1716,7 @@
 						notesContainer.className = "part-measure-notes"
 						notesContainer.addEventListener(TRIGGERS.mousedown, downMouseOnContainer)
 						notesContainer.addEventListener(TRIGGERS.doubleclick, doubleclickOnContainer)
+						notesContainer.addEventListener(TRIGGERS.contextmenu, doubleclickOnContainer)
 					measure.appendChild(notesContainer)
 
 				// dynamics input
@@ -1764,7 +1756,7 @@
 		}
 
 	/* buildMeasureNote */
-		function buildMeasureNote(partId, notesContainer, tickOfMeasure, pitches) {
+		function buildMeasureNote(partId, notesContainer, measureNumber, tickOfMeasure, pitches) {
 			try {
 				// loop through notes
 					for (let p in pitches) {
@@ -1786,12 +1778,27 @@
 								noteElement.setAttribute("actual-pitch", p)
 								noteElement.setAttribute("duration", pitches[p])
 								noteElement.setAttribute("actual-duration", pitches[p])
+								noteElement.addEventListener(TRIGGERS.contextmenu, rightClickOnNote)
 								noteElement.addEventListener(TRIGGERS.mousedown, downMouseOnNote)
 								noteElement.setAttribute("quasi-tabbable", true)
-								if (partId !== STATE.selected.partId) {
-									noteElement.setAttribute("tabindex", "-1")
-								}
 							notesContainer.appendChild(noteElement)
+
+						// selection
+							if (partId !== STATE.selected.partId) {
+								noteElement.setAttribute("tabindex", "-1")
+							}
+							else if (STATE.selected.notes[measureNumber + "." + tickOfMeasure + ":" + p]) {
+								const selectedNote = STATE.selected.notes[measureNumber + "." + tickOfMeasure + ":" + p]
+								
+								noteElement.setAttribute("interim-tick", selectedNote.element.getAttribute("interim-tick"))
+								noteElement.setAttribute("interim-pitch", selectedNote.element.getAttribute("interim-pitch"))
+								noteElement.setAttribute("interim-duration", selectedNote.element.getAttribute("interim-duration"))
+								noteElement.setAttribute("selected", true)
+								noteElement.focus()
+
+								selectedNote.element.remove()
+								STATE.selected.notes[measureNumber + "." + tickOfMeasure + ":" + p].element = noteElement
+							}
 
 						// text
 							const noteText = document.createElement("div")
@@ -2220,11 +2227,6 @@
 						relativeToInterim: options.relativeToInterim
 					}
 
-				// no change
-					if (!options.ticksChange && !options.pitchesChange) {
-						return
-					}
-
 				// stop waiting for cursor lift
 					STATE.cursor.element = null
 
@@ -2454,6 +2456,9 @@
 	/* doubleclickOnContainer */
 		function doubleclickOnContainer(event) {
 			try {
+				// prevent default
+					event.preventDefault()
+
 				// get current position
 					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
 					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
@@ -2484,9 +2489,6 @@
 	/* downMouseOnNote */
 		function downMouseOnNote(event) {
 			try {
-				// prevent default
-					event.preventDefault()
-
 				// note element
 					const noteElement = event.target.closest(".part-measure-note")
 					const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
@@ -2513,7 +2515,9 @@
 					}
 
 				// right-click --> delete
-					if (event.button == 2 || event.ctrlKey) {
+					if (event.button == 2 || event.ctrlKey || event.mobileContextMenu) {
+						event.preventDefault()
+						event.stopPropagation()
 						deleteNotes([note])
 						return
 					}
@@ -2546,9 +2550,21 @@
 						}
 
 					// note not selected --> make this the only selection
-						revertNotes()
+						updateNotes()
 						selectNotes([note])
 						moveMouse(event)
+			} catch (error) {console.log(error)}
+		}
+
+	/* rightClickOnNote */
+		function rightClickOnNote(event) {
+			try {
+				// prevent default
+					event.preventDefault()
+				
+				// pass on to downMouseOnNote
+					event.mobileContextMenu = true
+					downMouseOnNote(event)
 			} catch (error) {console.log(error)}
 		}
 
@@ -2559,6 +2575,10 @@
 					if (!STATE.selected.partId || !STATE.cursor.held || !Object.keys(STATE.selected.notes).length) {
 						return
 					}
+
+				// prevent container from scrolling
+					event.stopPropagation()
+					event.preventDefault()
 
 				// get current position
 					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
@@ -2594,11 +2614,18 @@
 				// unselecting something
 					if (STATE.cursor.element) {
 						const noteElement = STATE.cursor.element.closest(".part-measure-note")
-						const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
-						const id = measureNumber + "." + noteElement.getAttribute("actual-tick") + ":" + noteElement.getAttribute("actual-pitch")
-						if (STATE.selected.notes[id]) {
-							revertNotes([STATE.selected.notes[id]])
+						const measureElement = noteElement.closest(".part-measure")
+						if (!measureElement) {
+							noteElement.remove()
 						}
+						else {
+							const measureNumber = Number(measureElement.getAttribute("measure"))
+							const id = measureNumber + "." + noteElement.getAttribute("actual-tick") + ":" + noteElement.getAttribute("actual-pitch")
+							if (STATE.selected.notes[id]) {
+								revertNotes([STATE.selected.notes[id]])
+							}
+						}
+						
 						STATE.cursor.element = null
 					}
 
@@ -2618,6 +2645,11 @@
 	/* downMouseOnContainer */
 		function downMouseOnContainer(event) {
 			try {
+				// nothing selected
+					if (!STATE.selected.partId || !Object.keys(STATE.selected.notes).length) {
+						return
+					}
+
 				// update notes
 					updateNotes()
 			} catch (error) {console.log(error)}
@@ -2836,7 +2868,7 @@
 					const totalOffset = -CONSTANTS.leftColumnWidth + 
 						ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + 
 						STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth
-					ELEMENTS.content.element.scrollTo({left: totalOffset})
+					ELEMENTS.content.outer.scrollTo({left: totalOffset})
 
 				// increment duration for MIDI-pressed notes
 					if (STATE.playback.currentTickOfMeasure % 1 == 0) { // account for swing
@@ -2875,13 +2907,13 @@
 					const partJSON = STATE.music.parts[partId]
 
 				// get measure
-					const measure = partJSON.staves["1"][String(STATE.playback.currentMeasure)]
+					const measure = partJSON.measures[String(STATE.playback.currentMeasure)]
 					if (!measure) {
 						return
 					}
 
 				// dynamics
-					if (measure.dynamics) {
+					if (measure.dynamics !== undefined) {
 						STATE.playback.partDynamics[partId] = measure.dynamics
 					}
 
@@ -2904,7 +2936,7 @@
 					const notesContainer = ELEMENTS.content.parts[partId].measures[String(STATE.playback.currentMeasure)].notesContainer
 					for (let n in beatNotes) {
 						const frequency = AUDIO_J.getNote(n)[0]
-						synth.press(frequency, STATE.playback.partDynamics[partId])
+						synth.press(frequency, STATE.playback.partDynamics[partId] || -1) // to account for n/0
 						const waitMS = STATE.playback.interval * Math.max(1, (beatNotes[n] - 1))
 						synth.lift(frequency, waitMS)
 
@@ -2994,7 +3026,7 @@
 				// back to 0
 					STATE.playback.partDynamics = {}
 					STATE.playback.currentTickOfMeasure = 0
-					ELEMENTS.content.element.removeAttribute("playing")
+					ELEMENTS.content.outer.removeAttribute("playing")
 				
 				// stop instrument
 					if (AUDIO_J.audio) {

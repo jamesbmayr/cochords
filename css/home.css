@@ -62,12 +62,6 @@
 		user-select: none;
 	}
 
-	@media screen and (max-width: 500px) {
-		#heading-outer span {
-			display: none;
-		}
-	}
-
 	#name-input {
 		display: inline-block;
 		width: 100%;
@@ -232,3 +226,40 @@
 		box-shadow: none;
 		filter: drop-shadow(0px 0px var(--shadow-size) var(--dark-gray));
 	}
+
+/*** mobile ***/
+	@media screen and (max-width: 800px) {
+		#container {
+			margin-top: var(--small-gap-size);
+		}
+
+		#heading-outer {
+			padding-bottom: var(--medium-gap-size);
+			height: calc(var(--medium-gap-size) + var(--large-font-size) * 2.5 + var(--medium-gap-size) + var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size));
+		}
+
+		#heading-outer span {
+			display: none;
+		}
+
+		#join-music-form {
+			padding-top: var(--medium-gap-size);
+			height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size))
+		}
+
+		#actions-outer {
+			padding-bottom: var(--medium-gap-size);
+			height: calc(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size)))
+		}
+
+		#previous-music-section {
+			padding-top: var(--medium-gap-size);
+			padding-bottom: 0;
+			height: calc(100vh - 
+				(var(--medium-gap-size)) -
+				(var(--medium-gap-size) + 2.5 * var(--large-font-size) + var(--medium-gap-size) + (var(--medium-font-size) + 2 * var(--medium-gap-size)) + var(--medium-gap-size)) - 
+				(2 * (var(--medium-font-size) + 2 * var(--medium-gap-size) + var(--medium-gap-size))) - 
+				(var(--border-size)));
+		}
+	}
+

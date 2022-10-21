@@ -2,12 +2,6 @@
 	:root {
 		--multiplier: 1;
 	}
-
-	@media screen and (min-width: 801px) and (max-width: 1000px) {
-		:root {
-			--multiplier: 1;
-		}
-	}
 	
 	@media screen and (max-width: 800px) {
 		:root {
@@ -126,7 +120,6 @@
 		}
 
 		input[readonly], input[disabled], button[disabled], a[disabled], select[disabled] {
-			filter: brightness(var(--disabled-brightness));
 			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
