@@ -188,7 +188,11 @@
 			},
 			selected: {
 				partId: null,
-				notes: {}
+				notes: {},
+				notesFromMidiInput: {
+					ongoing: {},
+					complete: []
+				}
 			},
 			keyboard: {
 				arrowdown: false,
@@ -849,6 +853,19 @@
 							for (let p in playingNotes) {
 								playingNotes[p].removeAttribute("playing")
 							}
+
+						// submit midi notes
+							for (let n in STATE.selected.notesFromMidiInput.ongoing) {
+								const note = STATE.selected.notesFromMidiInput.ongoing[n]
+								STATE.selected.notesFromMidiInput.complete.push(note)
+							}
+							STATE.selected.notesFromMidiInput.ongoing = {}
+
+						// any to submit?
+							if (STATE.selected.notesFromMidiInput.complete.length) {
+								addNotes(STATE.selected.notesFromMidiInput.complete)
+								STATE.selected.notesFromMidiInput.complete = []
+							}
 						return
 					}
 
@@ -1423,6 +1440,10 @@
 							for (let t in tabbableElements) {
 								tabbableElements[t].setAttribute("tabindex", "-1")
 							}
+
+						// MIDI recording
+							STATE.selected.notesFromMidiInput.ongoing = {}
+							STATE.selected.notesFromMidiInput.complete = []
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -2072,8 +2093,8 @@
 		}
 
 /*** notes - editing ***/
-	/* addNote */
-		function addNote(note) {
+	/* addNotes */
+		function addNotes(notes, sound) {
 			try {
 				// playing
 					if (STATE.playback.playing) {
@@ -2090,20 +2111,27 @@
 						return
 					}
 
+				// no notes
+					if (!notes || !notes.length) {
+						return
+					}
+
 				// sound
-					if (AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
-						const frequency = AUDIO_J.getNote(note.pitch)[0]
-						AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
-						AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
+					if (sound && AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
+						for (let n in notes) {
+							const frequency = AUDIO_J.getNote(notes[n].pitch)[0]
+							AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
+							AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
+						}
 					}
 
 				// send to server
 					STATE.socket.send(JSON.stringify({
-						action: "addPartMeasureNote",
+						action: "addPartMeasureNotes",
 						composerId: STATE.composerId,
 						musicId: STATE.music.id,
 						partId: STATE.selected.partId,
-						note: note
+						notes: notes
 					}))
 			} catch (error) {console.log(error)}
 		}
@@ -2449,7 +2477,7 @@
 						pitch: CONSTANTS.highestPitch - pitchesFromTop,
 						duration: CONSTANTS.ticksPerBeat
 					}
-					addNote(note)
+					addNotes([note], true)
 			} catch (error) {console.log(error)}
 		}
 
@@ -2698,6 +2726,59 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* pressMIDIKey */
+		AUDIO_J.midi.pressKey = pressMIDIKey
+		function pressMIDIKey(pitch, velocity) {
+			try {
+				// no selected part
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// not playing --> sound will start due to activeInstrumentId hook
+					if (!STATE.playback.playing) {
+						return
+					}
+
+				// create note
+					const note = {
+						measureNumber: STATE.playback.currentMeasure,
+						tick: STATE.playback.currentTickOfMeasure,
+						pitch: pitch,
+						duration: 1
+					}
+
+				// add to list
+					STATE.selected.notesFromMidiInput.ongoing[String(pitch)] = note
+			} catch (error) {console.log(error)}
+		}
+
+	/* liftMIDIKey */
+		AUDIO_J.midi.liftKey = liftMIDIKey
+		function liftMIDIKey(pitch) {
+			try {
+				// no selected part
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// not playing --> sound will stop due to activeInstrumentId hook
+					if (!STATE.playback.playing) {
+						return
+					}
+
+				// find note
+					const note = STATE.selected.notesFromMidiInput.ongoing[String(pitch)]
+					if (!note) {
+						return
+					}
+
+				// move buckets
+					STATE.selected.notesFromMidiInput.complete.push(note)
+					delete STATE.selected.notesFromMidiInput.ongoing[String(pitch)]
+			} catch (error) {console.log(error)}
+		}
+
 /*** playback ***/	
 	/* firstClick */
 		window.addEventListener(TRIGGERS.click, firstClick)
@@ -2756,6 +2837,13 @@
 						ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + 
 						STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth
 					ELEMENTS.content.element.scrollTo({left: totalOffset})
+
+				// increment duration for MIDI-pressed notes
+					if (STATE.playback.currentTickOfMeasure % 1 == 0) { // account for swing
+						for (let n in STATE.selected.notesFromMidiInput.ongoing) {
+							STATE.selected.notesFromMidiInput.ongoing[n].duration++
+						}
+					}
 
 				// next
 					if (incrementTick()) {
@@ -2925,6 +3013,18 @@
 					const playingNotes = Array.from(ELEMENTS.content.partsContainer.querySelectorAll(".part-measure-note[playing='true']"))
 					for (let p in playingNotes) {
 						playingNotes[p].removeAttribute("playing")
+					}
+
+				// submit midi notes
+					for (let n in STATE.selected.notesFromMidiInput.ongoing) {
+						const note = STATE.selected.notesFromMidiInput.ongoing[n]
+						STATE.selected.notesFromMidiInput.complete.push(note)
+					}
+					STATE.selected.notesFromMidiInput.ongoing = {}
+
+					if (STATE.selected.notesFromMidiInput.complete.length) {
+						addNotes(STATE.selected.notesFromMidiInput.complete)
+						STATE.selected.notesFromMidiInput.complete = []
 					}
 			} catch (error) {console.log(error)}
 		}
