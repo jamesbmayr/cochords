@@ -45,18 +45,23 @@
 				sustain: 200, // ms
 			},
 			keyboard: {
+				altoption: 18,
 				arrowdown: 40,
 				arrowleft: 37,
 				arrowright: 39,
 				arrowup: 38,
 				backspace: 8,
+				c: 67,
+				control: 17,
 				delete: 46,
 				enter: 13,
 				escape: 27,
-				optalt: 18,
+				meta: 91,
 				shift: 16,
 				space: 32,
-				tab: 9
+				tab: 9,
+				v: 86,
+				x: 88,
 			},
 			midiToColor: {
 				"24": "rgb(185,  60,  60)",
@@ -165,21 +170,27 @@
 				notesFromMidiInput: {
 					ongoing: {},
 					complete: []
-				}
+				},
+				notesFromClipboard: {}
 			},
 			keyboard: {
+				altoption: false,
 				arrowdown: false,
 				arrowleft: false,
 				arrowright: false,
 				arrowup: false,
 				backspace: false,
+				c: false,
+				control: false,
 				delete: false,
 				enter: false,
 				escape: false,
-				optalt: false,
+				meta: false,
 				shift: false,
 				space: false,
-				tab: false
+				tab: false,
+				v: false,
+				x: false
 			},
 			keyboardListeners: {},
 			playback: {
@@ -215,8 +226,11 @@
 					}
 
 				// note editing
-					if (Object.keys(STATE.selected.notes).length || document.activeElement && document.activeElement.closest(".part-measure-notes")) {
+					if (Object.keys(STATE.selected.notes).length || (document.activeElement && document.activeElement.closest(".part-measure-notes"))) {
 						pressKeyWithinMeasure(event.which)
+					}
+					if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.v) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						addNotesFromClipboard(STATE.selected.notesFromClipboard)
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1222,8 +1236,14 @@
 				// assume no order changes
 					let orderChanges = null
 
+				// re-sort to do editor last
+					const partKeys = Object.keys(partsJSON).sort(function(a, b) {
+						return a.editorId
+					}).reverse()
+
 				// loop through
-					for (let id in partsJSON) {
+					for (let index in partKeys) {
+						const id = partKeys[index]
 						const partJSON = partsJSON[id]
 
 						// delete
@@ -1235,7 +1255,10 @@
 
 								if (STATE.selected.partId == id) {
 									STATE.selected.partId = null
-									STATE.selected.notes = []
+									STATE.selected.notes = {}
+									STATE.selected.notesFromMidiInput.ongoing = {}
+									STATE.selected.notesFromMidiInput.complete = []
+									setCursorState()
 								}
 
 								if (AUDIO_J.audio && AUDIO_J.instruments[id]) {
@@ -1397,6 +1420,12 @@
 							STATE.music.parts[partId].editorId = partJSON.editorId
 							partObject.editInput.checked = true
 
+						// selection
+							STATE.selected.notes = {}
+							STATE.selected.notesFromMidiInput.ongoing = {}
+							STATE.selected.notesFromMidiInput.complete = []
+							setCursorState()
+
 						// lock
 							partObject.measuresContainer.setAttribute("locked", "self")
 
@@ -1420,6 +1449,7 @@
 					if (wasSelected && (partId !== STATE.selected.partId)) {
 						// selected notes --> unselect & cancel
 							revertNotes()
+							setCursorState()
 
 						// active instrument						
 							AUDIO_J.activeInstrumentId = null
@@ -2143,6 +2173,58 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* addNotesFromClipboard */
+		function addNotesFromClipboard() {
+			try {
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// cursor state not set
+					if (!STATE.cursor.measureNumber) {
+						return
+					}
+
+				// nothing in clipboard
+					if (!Object.keys(STATE.selected.notesFromClipboard).length) {
+						return
+					}
+
+				// get offset
+					const offsets = {
+						measureNumber: Infinity,
+						tick: Infinity,
+						pitch: -Infinity
+					}
+					for (let n in STATE.selected.notesFromClipboard) {
+						if (STATE.selected.notesFromClipboard[n].measureNumber < offsets.measureNumber) {
+							offsets.measureNumber = STATE.selected.notesFromClipboard[n].measureNumber
+						}
+						if (STATE.selected.notesFromClipboard[n].tick < offsets.tick) {
+							offsets.tick = STATE.selected.notesFromClipboard[n].tick
+						}
+						if (STATE.selected.notesFromClipboard[n].pitch > offsets.pitch) {
+							offsets.pitch = STATE.selected.notesFromClipboard[n].pitch
+						}
+					}
+
+				// add notes
+					event.preventDefault()
+					const newNotes = []
+					
+					for (let n in STATE.selected.notesFromClipboard) {
+						newNotes.push({
+							measureNumber: (STATE.selected.notesFromClipboard[n].measureNumber - offsets.measureNumber) + STATE.cursor.measureNumber,
+							tick: (STATE.selected.notesFromClipboard[n].tick - offsets.tick) + STATE.cursor.ticksFromLeft,
+							pitch: (STATE.selected.notesFromClipboard[n].pitch - offsets.pitch) + (CONSTANTS.highestPitch - STATE.cursor.pitchesFromTop),
+							duration: STATE.selected.notesFromClipboard[n].duration
+						})
+					}
+					addNotes(newNotes)
+			} catch (error) {console.log(error)}
+		}
+
 	/* selectNotes */
 		function selectNotes(notes) {
 			try {
@@ -2430,7 +2512,7 @@
 		function setCursorState(event, note) {
 			try {
 				// none
-					if (!note) {
+					if (!note || !STATE.selected.partId) {
 						STATE.cursor.measureNumber = null
 						STATE.cursor.ticksFromLeft = null
 						STATE.cursor.pitchesFromTop = null
@@ -2545,6 +2627,10 @@
 				// not holding shift
 					// note selected --> wait for lift to unselect
 						if (STATE.selected.notes[note.id]) {
+							// end?
+								if (note.end !== STATE.selected.notes[note.id].end) {
+									STATE.selected.notes[note.id].end = note.end
+								}
 							STATE.cursor.element = note.element
 							return
 						}
@@ -2645,6 +2731,10 @@
 	/* downMouseOnContainer */
 		function downMouseOnContainer(event) {
 			try {
+				// set cursor
+					const measureNumber = Number(event.target.closest(".part-measure").getAttribute("measure"))
+					setCursorState(event, {measureNumber: measureNumber})
+
 				// nothing selected
 					if (!STATE.selected.partId || !Object.keys(STATE.selected.notes).length) {
 						return
@@ -2740,8 +2830,8 @@
 					if (key == CONSTANTS.keyboard.arrowleft) {
 						moveNotes(null, {
 							ticksChange: STATE.keyboard.shift ? -CONSTANTS.ticksPerBeat : -1,
-							forceStart: STATE.keyboard.optalt ? false : true,
-							forceEnd: STATE.keyboard.optalt ? true : false
+							forceStart: STATE.keyboard.altoption ? false : true,
+							forceEnd: STATE.keyboard.altoption ? true : false
 						})
 						event.preventDefault()
 						return
@@ -2749,9 +2839,28 @@
 					if (key == CONSTANTS.keyboard.arrowright) {
 						moveNotes(null, {
 							ticksChange: STATE.keyboard.shift ? CONSTANTS.ticksPerBeat : 1,
-							forceStart: STATE.keyboard.optalt ? false : true,
-							forceEnd: STATE.keyboard.optalt ? true : false
+							forceStart: STATE.keyboard.altoption ? false : true,
+							forceEnd: STATE.keyboard.altoption ? true : false
 						})
+						event.preventDefault()
+						return
+					}
+
+				// cut & copy
+					if ((key == CONSTANTS.keyboard.c || key == CONSTANTS.keyboard.x) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						STATE.selected.notesFromClipboard = {}
+						for (let n in STATE.selected.notes) {
+							STATE.selected.notesFromClipboard[n] = {
+								measureNumber: STATE.selected.notes[n].measureNumber,
+								duration: Number(STATE.selected.notes[n].element.getAttribute("duration")),
+								pitch: Number(STATE.selected.notes[n].element.getAttribute("pitch")),
+								tick: Number(STATE.selected.notes[n].element.getAttribute("tick"))
+							}
+						}
+
+						if (key == CONSTANTS.keyboard.x) {
+							deleteNotes()
+						}
 						event.preventDefault()
 						return
 					}

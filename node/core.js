@@ -434,6 +434,8 @@
 								defaultInstrument: "Acoustic Grand Piano",
 								minimumMidiChannel: 1,
 								maximumMidiChannel: 16,
+								lowestPitch: 24, // midi
+								highestPitch: 96, // midi
 								defaultSynth: "keystone",
 								rounding: 100,
 								attempts: 1000,

@@ -144,6 +144,13 @@
 									else if (!part.measures[m].notes) {
 										part.measures[m].notes = {}
 									}
+									else {
+										for (let p in part.measures[m].notes) {
+											if (p < CONSTANTS.lowestPitch || p > CONSTANTS.highestPitch) {
+												delete part.measures[m].notes[p]
+											}
+										}
+									}
 
 									if (part.measures[m].ticks !== music.measureTicks[m]) {
 										part.measures[m].ticks = music.measureTicks[m]
@@ -1770,12 +1777,49 @@
 				// validate notes
 					const lastMeasureNumber = Object.keys(music.measureTicks).length
 					const newNotes = REQUEST.post.notes || []
-					for (let n = 0; n < newNotes.length; n++) {
-						const measureNumber = Number(newNotes[n].measureNumber) || 0
-					    if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber || !newNotes[n].pitch || !newNotes[n].duration) {
-					        newNotes.splice(n, 1)
-					    }
+
+				// move notes
+					noteLoop: for (let n = 0; n < newNotes.length; n++) {
+						// updated note
+							const newNote = newNotes[n]
+
+						// impossible note
+							if (!newNote || !newNote.pitch || (newNote.pitch < CONSTANTS.lowestPitch || newNote.pitch > CONSTANTS.highestPitch) || !newNote.duration) {
+								newNotes.splice(n, 1)
+								n--
+								continue
+							}
+
+						// find new measure
+							newNote.newMeasureNumber = Number(newNote.measureNumber)
+							if (newNote.tick < 0) {
+								while (newNote.tick < 0) {
+									newNote.newMeasureNumber--
+									if (newNote.newMeasureNumber && music.measureTicks[String(newNote.newMeasureNumber)]) {
+										newNote.tick += music.measureTicks[String(newNote.newMeasureNumber)]
+									}
+									if (!newNote.newMeasureNumber) {
+										newNotes.splice(n, 1)
+										n--
+										continue noteLoop
+									}
+								}
+							}
+
+							if (newNote.tick >= music.measureTicks[String(newNote.newMeasureNumber)]) {
+								while (newNote.tick >= music.measureTicks[String(newNote.newMeasureNumber)]) {
+									newNote.tick -= music.measureTicks[String(newNote.newMeasureNumber)]
+									newNote.newMeasureNumber++
+									if (newNote.newMeasureNumber > lastMeasureNumber) {
+										newNotes.splice(n, 1)
+										n--
+										continue noteLoop
+									}
+								}
+							}
 					}
+
+				// no valid notes
 					if (!newNotes.length) {
 						callback({musicId: musicId, success: false, message: "no valid notes", recipients: [REQUEST.session.id]})
 						return
@@ -1800,7 +1844,7 @@
 								const newNote = newNotes[n]
 
 							// get measure number
-								const measureNumber = Number(newNote.measureNumber) || 0
+								const measureNumber = Number(newNote.newMeasureNumber) || 0
 								if (!updatedParts[partId].measures[String(measureNumber)]) {
 									updatedParts[partId].measures[String(measureNumber)] = {notes: part.measures[measureNumber].notes}
 								}
@@ -1890,7 +1934,7 @@
 						// impossible note
 							let noteBefore = updatedNote.noteBefore
 							let noteAfter = updatedNote.noteAfter
-							if (!noteAfter || !noteAfter.pitch || !noteAfter.duration) {
+							if (!noteAfter || !noteAfter.pitch || (noteAfter.pitch < CONSTANTS.lowestPitch || noteAfter.pitch > CONSTANTS.highestPitch) || !noteAfter.duration) {
 								callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
 								return
 							}
