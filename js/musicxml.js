@@ -686,46 +686,49 @@
 		function getDurationType(ticks) {
 			try {
 				if (ticks >= 96) {
-					return [`<duration>whole</duration><type>whole</type>`, ticks - 96]
+					return [`<duration>96</duration><type>whole</type>`, "", ticks - 96]
 				}
 				if (ticks >= 72) {
-					return [`<duration>72</duration><type>half</type><dot/>`, ticks - 72]
+					return [`<duration>72</duration><type>half</type><dot/>`, "", ticks - 72]
 				}
 				if (ticks >= 48) {
-					return [`<duration>48</duration><type>half</type>`, ticks - 48]
+					return [`<duration>48</duration><type>half</type>`, "", ticks - 48]
 				}
 				if (ticks >= 36) {
-					return [`<duration>36</duration><type>quarter</type><dot/>`, ticks - 36]
+					return [`<duration>36</duration><type>quarter</type><dot/>`, "", ticks - 36]
 				}
 				if (ticks >= 32) {
-					return [`<duration>32</duration><type>half</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 32]
+					return [`<duration>32</duration><type>half</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 32]
 				}
 				if (ticks >= 24) {
-					return [`<duration>24</duration><type>quarter</type>`, ticks - 24]
+					return [`<duration>24</duration><type>quarter</type>`, "", ticks - 24]
 				}
 				if (ticks >= 18) {
-					return [`<duration>18</duration><type>eighth</type><dot/>`, ticks - 18]
+					return [`<duration>18</duration><type>eighth</type><dot/>`, "", ticks - 18]
 				}
 				if (ticks >= 16) {
-					return [`<duration>16</duration><type>quarter</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 16]
+					return [`<duration>16</duration><type>quarter</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 16]
 				}
 				if (ticks >= 12) {
-					return [`<duration>12</duration><type>eighth</type>`, ticks - 12]
+					return [`<duration>12</duration><type>eighth</type>`, "", ticks - 12]
 				}
 				if (ticks >= 9) {
-					return [`<duration>9</duration><type>sixteenth</type><dot/>`, ticks - 9]
+					return [`<duration>9</duration><type>16th</type><dot/>`, "", ticks - 9]
 				}
 				if (ticks >= 8) {
-					return [`<duration>8</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 8]
+					return [`<duration>8</duration><type>eighth</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 8]
 				}
 				if (ticks >= 6) {
-					return [`<duration>6</duration><type>sixteenth</type>`, ticks - 6]
+					return [`<duration>6</duration><type>16th</type>`, "", ticks - 6]
 				}
 				if (ticks >= 4) {
-					return [`<duration>4</duration><type>sixteenth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 4]
+					return [`<duration>4</duration><type>16th</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 4]
 				}
 				if (ticks >= 3) {
-					return [`<duration>3</duration><type>thirtysecond</type>`, ticks - 3]
+					return [`<duration>3</duration><type>32nd</type>`, "", ticks - 3]
+				}
+				if (ticks >= 2) {
+					return [`<duration>2</duration><type>32nd</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 2]
 				}
 				return ['', 0]
 			} catch (error) {console.log(error)}
@@ -838,12 +841,12 @@
 							if (partJSON.staves[s][m].tempo !== undefined) {
 								partJSON.measures[m].tempo = partJSON.staves[s][m].tempo
 							}
-							for (let t in partJSON.staves[s][m]) {
-								if (!partJSON.measures[m][t]) {
-									partJSON.measures[m][t] = {}
+							for (let t in partJSON.staves[s][m].notes) {
+								if (!partJSON.measures[m].notes[t]) {
+									partJSON.measures[m].notes[t] = {}
 								}
-								for (let p in partJSON.staves[s][m][t]) {
-									partJSON.measures[m][t][p] = partJSON.staves[s][m][t][p]
+								for (let p in partJSON.staves[s][m].notes[t]) {
+									partJSON.measures[m].notes[t][p] = partJSON.staves[s][m].notes[t][p]
 								}
 							}
 						}
@@ -1030,7 +1033,7 @@
 					}
 
 				// concatenate
-					musicXML += `\t<part-list>\n` + partsList.join("") + `\t</part-list>\n`
+					musicXML += `  <part-list>\n` + partsList.join("") + `  </part-list>\n`
 					musicXML += parts.join("")
 					musicXML += `</score-partwise>`
 
@@ -1047,18 +1050,18 @@
 					let infoXML = ""
 
 				// title
-					infoXML += `\t<movement-title>` + musicJSON.title + `</movement-title>\n`
+					infoXML += `  <movement-title>` + musicJSON.title + `</movement-title>\n`
 
 				// identification
 					const now = new Date()
 					const year = now.getFullYear()
 					const month = now.getMonth() + 1
 					const day = now.getDate()
-					infoXML += `\t<identification>\n\t\t<creator type="composer">` + musicJSON.composer + `</creator>\n\t\t<encoding>\n\t\t\t<software>CoChords by James Mayr</software>\n\t\t\t<encoding-date>` + (year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)) + `</encoding-date>\n\t\t</encoding>\n\t</identification>\n`
+					infoXML += `  <identification>\n    <creator type="composer">` + musicJSON.composer + `</creator>\n    <encoding>\n      <software>CoChords by James Mayr</software>\n      <encoding-date>` + (year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)) + `</encoding-date>\n    </encoding>\n  </identification>\n`
 
 				// display info
-					infoXML += `\t<credit page="1">\n\t\t<credit-type>title</credit-type>\n\t\t<credit-words default-x="50" default-y="1250" font-size="24" justify="left" valign="top">` + musicJSON.title + `</credit-words>\n\t</credit>\n`
-					infoXML += `\t<credit page="1">\n\t\t<credit-type>composer</credit-type>\n\t\t<credit-words default-x="950" default-y="1150" font-size="12" justify="right" valign="top">` + musicJSON.composer + `</credit-words>\n\t</credit>\n`
+					infoXML += `  <credit page="1">\n    <credit-type>title</credit-type>\n    <credit-words default-x="50" default-y="1250" font-size="24" justify="left" valign="top">` + musicJSON.title + `</credit-words>\n  </credit>\n`
+					infoXML += `  <credit page="1">\n    <credit-type>composer</credit-type>\n    <credit-words default-x="950" default-y="1150" font-size="12" justify="right" valign="top">` + musicJSON.composer + `</credit-words>\n  </credit>\n`
 
 				// return
 					return infoXML
@@ -1074,189 +1077,248 @@
 
 				// parts list
 					// start
-						let partsListXML = `\t\t<score-part id="P` + partJSON.order + `">\n`
+						let partsListXML = `    <score-part id="P` + partJSON.order + `">\n`
 
 					// name
-						partsListXML += `\t\t\t<part-name>` + partJSON.name + `</part-name>\n`
-						partsListXML += `\t\t\t<part-name-display>\n\t\t\t\t<display-text>` + partJSON.name + `</display-text>\n\t\t\t</part-name-display>\n`
-						partsListXML += `\t\t\t<part-abbreviation>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</part-abbreviation>\n`
-						partsListXML += `\t\t\t<part-abbreviation-display>\n\t\t\t\t<display-text>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</display-text>\n\t\t\t</part-abbreviation-display>\n`
+						partsListXML += `      <part-name>` + partJSON.name + `</part-name>\n`
+						partsListXML += `      <part-name-display>\n        <display-text>` + partJSON.name + `</display-text>\n      </part-name-display>\n`
+						partsListXML += `      <part-abbreviation>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</part-abbreviation>\n`
+						partsListXML += `      <part-abbreviation-display>\n        <display-text>` + (partJSON.abbreviation || partJSON.name.slice(0,3)) + `</display-text>\n      </part-abbreviation-display>\n`
 
 					// instrument
-						partsListXML += `\t\t\t<score-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n\t\t\t\t<instrument-name>` + (partJSON.instrument || MUSICXML_J.constants.midiToInstrument[partJSON.midiProgram]) + `</instrument-name>\n\t\t\t</score-instrument>\n`
-						partsListXML += `\t\t\t<midi-device id="P` + partJSON.order + `-I` + partJSON.order + `"></midi-device>\n`
-						partsListXML += `\t\t\t<midi-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n\t\t\t\t<midi-channel>` + partJSON.midiChannel + `</midi-channel>\n\t\t\t\t<midi-program>` + partJSON.midiProgram + `</midi-program>\n\t\t\t\t<volume>80</volume>\n\t\t\t\t<pan>0</pan>\n\t\t\t</midi-instrument>\n`
+						partsListXML += `      <score-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n        <instrument-name>` + (partJSON.instrument || MUSICXML_J.constants.midiToInstrument[partJSON.midiProgram]) + `</instrument-name>\n      </score-instrument>\n`
+						partsListXML += `      <midi-instrument id="P` + partJSON.order + `-I` + partJSON.order + `">\n        <midi-channel>` + partJSON.midiChannel + `</midi-channel>\n        <midi-program>` + partJSON.midiProgram + `</midi-program>\n        <volume>80</volume>\n        <pan>0</pan>\n      </midi-instrument>\n`
 
 					// end
-						partsListXML += `\t\t</score-part>\n`
+						partsListXML += `    </score-part>\n`
 
 				// measures
 					// start
-						let partXML = `\t<part id="P` + partJSON.order + `">\n`
+						let partXML = `  <part id="P` + partJSON.order + `">\n`
+						const measures = []
+
+					// statuses
+						let currentTicksPerMeasure = 0
+						let currentUnchangedTicks = 0
+						let currentPitches = {}
+						let currentHolds = {}
 
 					// loop through
-						const measures = []
-						for (let s in partJSON.staves) { // only ever 1 staff in this app
-							let currentTicksPerMeasure = 0
-							for (let m in partJSON.staves[s]) {
-								// measureJSON
-									const measureJSON = partJSON.staves[s][m]
+						for (let m in partJSON.measures) {
+							// measureJSON
+								const measureJSON = partJSON.measures[m]
 
-								// start
-									let measureXML = `\t\t<measure number="` + m + `">\n`
+							// start
+								let measureXML = `    <measure number="` + m + `">\n`
 
-								// attributes
-									let divisionChange = (m == "1") ? `\t\t\t\t<divisions>24</divisions>\n` : "" // never changes
-									let keyChange = (m == "1") ? `\t\t\t\t<key><fifths>0</fifths><mode>major</mode></key>\n` : "" // not deduced
-									let clefChange = (m == "1") ? `\t\t\t\t<clef>` + getClefType(partJSON.midiProgram) + `</clef>\n` : "" // from midi program
+							// attributes
+								// first measure things
+									let divisionChange = (m == "1") ? `        <divisions>24</divisions>\n` : "" // never changes
+									let keyChange = (m == "1") ? `        <key><fifths>0</fifths><mode>major</mode></key>\n` : "" // not deduced
+									let clefChange = (m == "1") ? `        <clef>` + getClefType(partJSON.midiProgram) + `</clef>\n` : "" // from midi program
+
+								// time signature changes
 									let timeChange = ""
 									if (measureJSON.ticks !== currentTicksPerMeasure) {
 										currentTicksPerMeasure = measureJSON.ticks
-										timeChange = `\t\t\t\t<time>` + getTimeType(measureJSON.ticks) + `</time>\n`
+										timeChange = `        <time>` + getTimeType(currentTicksPerMeasure) + `</time>\n`
 									}
 
+								// write attributes
 									if (divisionChange || keyChange || clefChange || timeChange) {
-										measureXML += `\t\t\t<attributes>\n` + divisionChange + keyChange + timeChange + clefChange + `\t\t\t</attributes>\n`
+										measureXML += `      <attributes>\n` + divisionChange + keyChange + timeChange + clefChange + `      </attributes>\n`
 									}
 
+							// directions
 								// swing
 									if (m == "1") {
-										measureXML += partJSON.swing ?
-										`\t\t\t<sound><swing><first>2</first><second>1</second><swing-style>Standard</swing-style></swing></sound>\n` : 
-										`\t\t\t<sound><swing><straight/></swing></sound>\n`
+										measureXML += musicJSON.swing ?
+										`      <sound><swing><first>2</first><second>1</second><swing-style>Standard</swing-style></swing></sound>\n` : 
+										`      <sound><swing><straight/></swing></sound>\n`
 									}
 
 								// tempo
-									if (measureJSON.tempo) {
-										measureXML += `\t\t\t<direction directive="yes" placement="above">\n\t\t\t\t<direction-type>\n\t\t\t\t\t<words font-size="12">Tempo ` + measureJSON.tempo + `</words>\n\t\t\t\t</direction-type>\n\t\t\t\t<sound tempo="` + measureJSON.tempo + `"/>\n\t\t\t</direction>\n`
+									if (musicJSON.tempoChanges[m]) {
+										measureXML += `      <direction directive="yes" placement="above">\n        <direction-type>\n          <words font-size="12">Tempo ` + musicJSON.tempoChanges[m] + `</words>\n        </direction-type>\n        <sound tempo="` + musicJSON.tempoChanges[m] + `"/>\n      </direction>\n`
 									}
 
 								// dynamics
-									if (measureJSON.dynamics) {
-										measureXML += `\t\t\t<direction placement="below">\n\t\t\t\t<direction-type>\n\t\t\t\t\t<dynamics><` + getDynamicType(measureJSON.dynamics) + `/></dynamics>\n\t\t\t\t</direction-type>\n\t\t\t\t<sound dynamics="` + (measureJSON.dynamics * 100) + `"/>\n\t\t\t</direction>\n`
+									if (measureJSON.dynamics !== undefined) {
+										measureXML += `      <direction placement="below">\n        <direction-type>\n          <dynamics><` + getDynamicType(measureJSON.dynamics) + `/></dynamics>\n        </direction-type>\n        <sound dynamics="` + (measureJSON.dynamics * 100) + `"/>\n      </direction>\n`
 									}
 
+							// rests & notes
 								// rest measure
 									if (!measureJSON.notes || !Object.keys(measureJSON.notes).length) {
-										measureXML += `\t\t\t<note>\n\t\t\t\t<rest measure="yes"/>\n\t\t\t\t<duration>` + currentTicksPerMeasure + `</duration>\n\t\t\t</note>\n`
+										measureXML += `      <note>\n        <rest measure="yes"/>\n        <duration>` + currentTicksPerMeasure + `</duration>\n      </note>\n`
 									}
 
-								// go through ticks of measure
-									if (measureJSON.notes) {
-										// reset counts
+								// notes
+									else {
+										// start of measure
 											let currentTickOfMeasure = 0
-											let currentRestDuration = 0
-										
-										// increment ticks
+
+										// loop through ticks of measure
 											while (currentTickOfMeasure < currentTicksPerMeasure) {
-												// notes
-													const notesJSON = measureJSON.notes[String(currentTickOfMeasure)]
-													if (notesJSON) {
-														// preceding rests
-															while (currentRestDuration) {
-																const output = getDurationType(currentRestDuration)
-																	const durationXML = output[0]
-																	currentRestDuration = output[1]
-																measureXML += `\t\t\t<note>\n\t\t\t\t<rest/>\n\t\t\t\t` + durationXML + `\n\t\t\t</note>\n`
-															}
+												// skip for zeroth tick
+													if (currentTickOfMeasure > 0) {
+														// decrement pitches
+															let sliceNotes = false
+															for (let p in currentPitches) {
+																// reduce remaining duration
+																	currentPitches[p]--
 
-														// reset info
-															let longestNoteDuration = 0
-															let noteInChord = -1
-
-														// loop through pitches of chord
-															for (let pitch in notesJSON) {
-																// increment for each pitch to identify chords
-																	noteInChord++
-
-																// get pitch info
-																	const output = getPitchType(pitch)
-																		const pitchXML = output[0]
-																		const accidentalXML = output[1]
-
-																// get duration info
-																	let currentNoteDuration = notesJSON[pitch]
-
-																// held over?
-																	let heldFromPreviousMeasure = false
-																	if (typeof currentNoteDuration == "string" && currentNoteDuration.slice(0,1) == "_") {
-																		heldFromPreviousMeasure = true
-																		currentNoteDuration = Number(currentNoteDuration.slice(1))
-																	}
-
-																// hold over?
-																	let holdIntoNextMeasure = false
-																	if (currentTickOfMeasure + currentNoteDuration > currentTicksPerMeasure) {
-																		// cap it
-																			let remainingDuration = currentTicksPerMeasure - currentTickOfMeasure
-																			let leftoverDuration = currentNoteDuration - remainingDuration
-																			currentNoteDuration = remainingDuration
-
-																		// push to next measure
-																			let nextMeasureJSON = partJSON.staves[s][String(Number(m) + 1)]
-																			if (nextMeasureJSON) {
-																				if (!nextMeasureJSON.notes) {
-																					nextMeasureJSON.notes = {}
-																				}
-																				if (!nextMeasureJSON.notes["0"]) {
-																					nextMeasureJSON.notes["0"] = {}
-																				}
-																				nextMeasureJSON.notes["0"][pitch] = "_" + leftoverDuration
-																				holdIntoNextMeasure = true
-																			}
-																	}
-																	longestNoteDuration = Math.max(longestNoteDuration, currentNoteDuration)
-
-																// build note
-																	let wasHeld = false
-																	while (currentNoteDuration) {
-																		const output = getDurationType(currentNoteDuration)
-																			const durationXML = output[0]
-																			currentNoteDuration = output[1]
-																		measureXML += `\t\t\t<note>\n` + 
-																			(noteInChord ? `\t\t\t\t<chord/>\n` : "") +
-																			(pitchXML ? (`\t\t\t\t` + pitchXML + `\n`) : "") +
-																			(durationXML ? (`\t\t\t\t` + durationXML + `\n`) : "") + 
-																			(accidentalXML ? (`\t\t\t\t` + accidentalXML + `\n`) : "") + 
-																			(wasHeld || heldFromPreviousMeasure || currentNoteDuration || holdIntoNextMeasure ? (`\t\t\t\t<notations>` + (wasHeld || heldFromPreviousMeasure ? `<tied type="stop"/>` : "") + (currentNoteDuration || holdIntoNextMeasure ? `<tied type="start"/>` : "") + `</notations>\n`) : "") +
-																			`\t\t\t</note>\n`
-																		wasHeld = currentNoteDuration ? true : false
+																// duration complete?
+																	if (currentPitches[p] <= 0) {
+																		sliceNotes = true
 																	}
 															}
 
-														// jump to end of longest note
-															currentTickOfMeasure += longestNoteDuration
+														// new pitches?
+															if (measureJSON.notes[currentTickOfMeasure]) {
+																sliceNotes = true
+															}
+
+														// slice notes
+															if (sliceNotes) {
+																// add notes / rests to measure
+																	if (currentUnchangedTicks) {
+																		const output = buildMusicXMLNotes(currentUnchangedTicks, currentPitches, currentHolds)
+																			measureXML += output[0]
+																			currentHolds = output[1]
+																	}
+
+																// reset counter
+																	currentUnchangedTicks = 0
+
+																// remove empty pitches
+																	for (let p in currentPitches) {
+																		if (currentPitches[p] <= 0) {
+																			delete currentPitches[p]
+																		}
+																	}
+															}
 													}
 
-												// rests
-													else {
-														currentRestDuration++
-														currentTickOfMeasure++
+												// new pitches
+													for (let p in measureJSON.notes[currentTickOfMeasure]) {
+														currentPitches[p] = measureJSON.notes[currentTickOfMeasure][p]
 													}
+
+												// next tick
+													currentTickOfMeasure++
+													currentUnchangedTicks++
 											}
 
-										// remaining rests
-											while (currentRestDuration) {
-												const output = getDurationType(currentRestDuration)
-													const durationXML = output[0]
-													currentRestDuration = output[1]
-												measureXML += `\t\t\t<note>\n\t\t\t\t<rest/>\n\t\t\t\t` + durationXML + `\n\t\t\t</note>\n`
-											}
+										// end of measure
+											// decrement pitches
+												for (let p in currentPitches) {
+													// reduce remaining duration
+														currentPitches[p]--
+												}
+
+											// add notes / rests to measure
+												const output = buildMusicXMLNotes(currentUnchangedTicks, currentPitches, currentHolds)
+													measureXML += output[0]
+													currentHolds = output[1]
+
+											// reset counter
+												currentUnchangedTicks = 0
+
+											// remove empty pitches
+												for (let p in currentPitches) {
+													if (currentPitches[p] <= 0) {
+														delete currentPitches[p]
+													}
+												}
 									}
 
-								// end
-									measureXML += `\t\t</measure>\n`
-									measures.push(measureXML)
-							}
+							// package up
+								measureXML += `    </measure>\n`
+								measures.push(measureXML)
 						}
 
-					// concatenate
+					// concatenate & end
 						partXML += measures.join("")
-							
-					// end
-						partXML += `\t</part>\n`
+						partXML += `  </part>\n`
 
 				// return both
 					return [partsListXML, partXML]
+			} catch (error) {console.log(error)}
+		}
+
+	/* buildMusicXMLNotes */
+		MUSICXML_J.buildMusicXMLPart = buildMusicXMLPart
+		function buildMusicXMLNotes(ticks, pitches, oldHolds) {
+			try {
+				// no ticks
+					if (!ticks) {
+						return ["", {}]
+					}
+
+				// durations
+					const durationsXML = []
+					while (ticks) {
+						const output = getDurationType(ticks)
+							durationsXML.push([output[0], output[1]])
+							ticks = output[2]
+					}
+
+				// rest
+					if (!pitches || !Object.keys(pitches).length) {
+						// empty string
+							let restXML = ""
+						// loop through durations
+							for (let d in durationsXML) {
+								restXML += `      <note>\n        <rest/>\n        ` + durationsXML[d][0] + durationsXML[d][1] + `\n      </note>\n`
+							}
+						return [restXML, {}]
+					}
+
+				// notes
+					// empty string
+						let noteXML = ""
+
+					// holds after this cluster
+						const newHolds = {}
+						for (let p in pitches) {
+							if (pitches[p] > 0) {
+								newHolds[p] = true
+							}
+						}
+
+					// loop through durations
+						for (let d = 0; d < durationsXML.length; d++) {
+							// first note not a chord
+								let isChord = false
+							
+							// loop through pitches
+								for (let p in pitches) {
+									// get pitch info
+										const output = getPitchType(p)
+											const pitchXML = output[0]
+											const accidentalXML = output[1]
+
+									// build
+										noteXML += `      <note>\n` + 
+											(isChord ? `        <chord/>\n` : "") +
+											(pitchXML ? (`        ` + pitchXML + `\n`) : "") +
+											(`        ` + durationsXML[d][0] + `\n`) + 
+											(accidentalXML ? (`        ` + accidentalXML + `\n`) : "") + 
+											(durationsXML[d][1] ? (`        ` + durationsXML[d][1] + `\n`) : "") + 
+											(`        <notations>` + 
+												(oldHolds[p] || d ? `<tied type="stop"/>` : "") + 
+												(d < durationsXML.length - 1 || newHolds[p] ? `<tied type="start"/>` : "") + 
+												// (durationsXML[d][1] ? `<tuplet number="1" type="start"/>` : "") +
+											`</notations>\n`) +
+											`      </note>\n`
+
+									// chord for subsequent pitches
+										isChord = true
+								}
+						}
+
+					// return
+						return [noteXML, newHolds]
 			} catch (error) {console.log(error)}
 		}

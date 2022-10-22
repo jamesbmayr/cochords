@@ -832,7 +832,7 @@
 										AUDIO_J.instruments[p].setParameters({power: 0})
 									}
 									if (STATE.selected.partId == p) {
-										AUDIO_J.instruments[p].setParameters({power: 0})
+										AUDIO_J.instruments[p].setParameters({power: 1})
 									}
 								}
 							}
@@ -3031,8 +3031,11 @@
 				// stop instrument
 					if (AUDIO_J.audio) {
 						for (let p in STATE.music.parts) {
-							if (AUDIO_J.instruments[p] && STATE.selected.partId !== p) {
+							if (AUDIO_J.instruments[p]) {
 								AUDIO_J.instruments[p].setParameters({power: 0})
+							}
+							if (STATE.selected.partId == p) {
+								AUDIO_J.instruments[p].setParameters({power: 1})
 							}
 						}
 					}

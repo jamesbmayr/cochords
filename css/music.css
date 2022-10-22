@@ -592,17 +592,18 @@
 				z-index: 3;
 				margin: 0;
 				border-bottom: var(--border-size) solid var(--light-gray);
-				width: calc(var(--large-font-size) + 2 * var(--medium-gap-size));
+				width: calc(var(--medium-font-size) + 4 * var(--medium-gap-size));
 				height: 100%;
 				background: var(--dark-gray);
-				padding: calc(((3 * (var(--medium-font-size) + 2 * var(--medium-gap-size))) - var(--large-font-size)) / 2) var(--medium-gap-size);
+				padding: calc(((3 * (var(--medium-font-size) + 2 * var(--medium-gap-size))) - (var(--medium-font-size) + 2 * var(--medium-gap-size))) / 2) var(--medium-gap-size);
+				box-sizing: border-box;
 				overflow: hidden;
 			}
 
 			#content-measures-add {
 				display: inline-block;
-				height: var(--large-font-size);
-				width: var(--large-font-size);
+				height: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
+				width: calc(var(--medium-font-size) + 2 * var(--medium-gap-size));
 				font-size: var(--medium-font-size);
 				color: var(--light-gray);
 				background: var(--medium-blue);
@@ -1026,7 +1027,7 @@
 			}
 
 			.part-after {
-				width: auto;
+				width: calc(var(--medium-font-size) + 4 * var(--medium-gap-size));;
 				background: var(--dark-gray);
 				padding: 0;
 				border-top: var(--border-size) solid var(--light-gray);
