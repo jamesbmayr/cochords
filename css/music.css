@@ -1191,7 +1191,7 @@
 		font-size: var(--small-font-size);
 	}
 
-	#help-mobile {
+	.help-mobile {
 		display: none;
 	}
 
@@ -1256,11 +1256,11 @@
 			width: calc(100% + var(--left-column-size));
 		}
 
-		#help-desktop {
+		.help-desktop {
 			display: none;
 		}
 
-		#help-mobile {
+		.help-mobile {
 			display: block;
 		}
 	}

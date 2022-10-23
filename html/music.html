@@ -101,33 +101,37 @@
 		<details id="help">
 			<summary id="help-button">?</summary>
 			<div id="help-content">
-				<div id="help-all">
+				<div>
 					<div>CONTROLS</div>
-					<li>&darr;MUSIC: download musicXML of full score</li>
-					<li>SWING: ♫ syncopated (♪♪ &rarr; 3[♪♪]♪)</li>
-					<li>LOOP: music restarts immediately at the end</li>
-					<li>METRONOME: tick sound on ♩</li>
+					<li class="help-desktop">&darr;SCORE: download musicXML of full score</li>
+					<li>&#x266B;SWING: syncopation / shuffle (♪♪ &rarr; 3[♪♪]♪)</li>
+					<li>&#10226;: loop to restart immediately at the end</li>
+					<li>&#9750;: metronome tick sound on ♩</li>
 					<li>SPEED &times;: bpm multiplier</li>
-					<li>&uarr;SYNTH: upload custom <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a></li>
+					<li class="help-desktop">&#x2707;: record audio and export webm file</li>
+					<li>&#9654;PLAY: toggle music playback</li>
+					<li class="help-desktop">&uarr;SYNTH: upload custom <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a></li>
 					<div>MEASURES</div>
 					<li>BARS: + to insert before, &times; to remove</li>
 					<li>BEATS: # ♩ quarter notes per measure</li>
 					<li>TEMPO: beats per minute, where ♩ is 1 beat</li>
+					<li>&#x2A01;: add measure to the end</li>
 					<div>PARTS</div>
-					<li>EDIT: take over editing for that part</li>
+					<li>&#x270F;EDIT: take over editing for that part</li>
 					<li>NAME: custom part name</li>
 					<li>MIDI: instrument name in MIDI standard</li>
 					<li>SYNTH: <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a> sound</li>
 					<li>MOVE&uarr;&darr;: reorder parts in the score</li>
-					<li>&#x1F508;: playback volume (not dynamics)</li>
+					<li>&#x1F508;: playback volume (not score dynamics)</li>
 					<li>DYNAMICS: intensity changes below measure</li>
+					<li>+PART: add another part to the score</li>
 					<div>NOTES</div>
 					<li>range: C1 - C7, semitones ascending</li>
 					<li>background: white keys vs. black keys</li>
 					<li>beats: horizontal lines indicate each ♩ start</li>
 					<li>ticks: each beat subdivides into 24 ticks</li>
 				</div>
-				<div id="help-desktop">
+				<div class="help-desktop">
 					<div>NOTES - MOUSE</div>
 					<li>click on note: select/unselect</li>
 					<li>shift-click on note: multi-select</li>
@@ -149,8 +153,15 @@
 					<li>enter: submit changes</li>
 					<li>backspace/delete: delete selected notes</li>
 					<li>escape: revert selection to original pitches & beats</li>
+					<div>NOTES - HOTKEYS</div>
+					<li>cmd/ctrl-A: select all notes in part</li>
+					<li>cmd/ctrl-Z: undo add/update/delete notes</li>
+					<li>shift cmd/ctrl-Z: redo add/update/delete notes</li>
+					<li>cmd/ctrl-X: cut selection</li>
+					<li>cmd/ctrl-C: copy selection</li>
+					<li>click + cmd/ctrl-V: paste selection at cursor click</li>
 				</div>
-				<div id="help-mobile">
+				<div class="help-mobile">
 					<div>NOTES - MOBILE</div>
 					<li>press on note: select/unselect</li>
 					<li>drag note: move to change pitch & beat</li>

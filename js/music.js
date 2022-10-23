@@ -45,6 +45,7 @@
 				sustain: 200, // ms
 			},
 			keyboard: {
+				a: 65,
 				altoption: 18,
 				arrowdown: 40,
 				arrowleft: 37,
@@ -62,6 +63,7 @@
 				tab: 9,
 				v: 86,
 				x: 88,
+				z: 90
 			},
 			midiToColor: {
 				"24": "rgb(185,  60,  60)",
@@ -171,9 +173,12 @@
 					ongoing: {},
 					complete: []
 				},
-				notesFromClipboard: {}
+				notesFromClipboard: {},
+				history: [],
+				historyIndex: 0
 			},
 			keyboard: {
+				a: false,
 				altoption: false,
 				arrowdown: false,
 				arrowleft: false,
@@ -190,7 +195,8 @@
 				space: false,
 				tab: false,
 				v: false,
-				x: false
+				x: false,
+				z: false
 			},
 			keyboardListeners: {},
 			playback: {
@@ -226,13 +232,25 @@
 						}
 					}
 
-				// note editing
-					if (Object.keys(STATE.selected.notes).length || (document.activeElement && document.activeElement.closest(".part-measure-notes"))) {
-						pressKeyWithinMeasure(event.which)
-					}
-					if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.v) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+				// note editing hotkeys
+					if      (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.v) && (STATE.keyboard.meta || STATE.keyboard.control)) {
 						addNotesFromClipboard(STATE.selected.notesFromClipboard)
 					}
+					else if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.a) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						selectAllNotes()
+					}
+					else if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.z) && (STATE.keyboard.meta || STATE.keyboard.control) && STATE.keyboard.shift) {
+						redoNoteAction()
+					}
+					else if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.z) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						undoNoteAction()
+					}
+
+				// note editing keys
+					else if (Object.keys(STATE.selected.notes).length || (document.activeElement && document.activeElement.closest(".part-measure-notes"))) {
+						pressKeyWithinMeasure(event.which)
+					}
+					
 			} catch (error) {console.log(error)}
 		}
 
@@ -1468,6 +1486,8 @@
 							STATE.selected.notes = {}
 							STATE.selected.notesFromMidiInput.ongoing = {}
 							STATE.selected.notesFromMidiInput.complete = []
+							STATE.selected.history = []
+							STATE.selected.historyIndex = 0
 							setCursorState()
 
 						// lock
@@ -1505,9 +1525,11 @@
 							}
 							ELEMENTS.content.parts[partId].nameInput.setAttribute("disabled", true)
 
-						// MIDI recording
+						// selection
 							STATE.selected.notesFromMidiInput.ongoing = {}
 							STATE.selected.notesFromMidiInput.complete = []
+							STATE.selected.history = []
+							STATE.selected.historyIndex = 0
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -2207,6 +2229,7 @@
 					}
 
 				// send to server
+					rememberNoteAction("addPartMeasureNotes", notes)
 					STATE.socket.send(JSON.stringify({
 						action: "addPartMeasureNotes",
 						composerId: STATE.composerId,
@@ -2220,6 +2243,11 @@
 	/* addNotesFromClipboard */
 		function addNotesFromClipboard() {
 			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+
 				// no part selected
 					if (!STATE.selected.partId) {
 						return
@@ -2276,10 +2304,15 @@
 					if (STATE.playback.playing) {
 						return
 					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
 
 				// loop through to find elements
 					for (let n in notes) {
-						const id = notes[n].measureNumber + "." + notes[n].tick + ":" + notes[n].pitch
+						const id = notes[n].id || (notes[n].measureNumber + "." + notes[n].tick + ":" + notes[n].pitch)
 						
 						const noteElement = notes[n].element || ELEMENTS.content.parts[partId].measures[notes[n].measureNumber].notesContainer.querySelector("[actual-tick='" + notes[n].tick + "'][actual-pitch='" + notes[n].pitch + "'][actual-duration='" + notes[n].duration + "']")
 							noteElement.setAttribute("selected", true)
@@ -2335,6 +2368,11 @@
 			try {
 				// playing
 					if (STATE.playback.playing) {
+						return
+					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
 						return
 					}
 
@@ -2451,6 +2489,11 @@
 					if (STATE.playback.playing) {
 						return
 					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
 
 				// no notes?
 					notes = notes || STATE.selected.notes
@@ -2478,6 +2521,7 @@
 					}
 
 				// send to server
+					rememberNoteAction("deletePartMeasureNotes", deletedNotes)
 					STATE.socket.send(JSON.stringify({
 						action: "deletePartMeasureNotes",
 						composerId: STATE.composerId,
@@ -2499,6 +2543,11 @@
 					if (STATE.playback.playing) {
 						return
 					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
 
 				// no notes?
 					notes = notes || STATE.selected.notes
@@ -2513,13 +2562,14 @@
 					for (let n in notes) {
 						// identify updates
 							const updatedNote = {
-								measureNumber: notes[n].measureNumber,
-								noteBefore: {
+								before: {
+									measureNumber: notes[n].measureNumber,
 									tick: notes[n].tick,
 									pitch: notes[n].pitch,
 									duration: notes[n].duration
 								},
-								noteAfter: {
+								after: {
+									measureNumber: notes[n].measureNumber,
 									tick: Number(notes[n].element.getAttribute("tick")),
 									pitch: Number(notes[n].element.getAttribute("pitch")),
 									duration: Number(notes[n].element.getAttribute("duration"))
@@ -2527,15 +2577,16 @@
 							}
 
 						// no updates
-							if (updatedNote.noteBefore.tick     !== updatedNote.noteAfter.tick  ||
-								updatedNote.noteBefore.pitch    !== updatedNote.noteAfter.pitch ||
-								updatedNote.noteBefore.duration !== updatedNote.noteAfter.duration) {
+							if (updatedNote.before.tick     !== updatedNote.after.tick  ||
+								updatedNote.before.pitch    !== updatedNote.after.pitch ||
+								updatedNote.before.duration !== updatedNote.after.duration) {
 								updatedNotes.push(updatedNote)
 							}
 					}
 
-				// something to send?
+				// send to server
 					if (updatedNotes.length) {
+						rememberNoteAction("updatePartMeasureNotes", updatedNotes)
 						STATE.socket.send(JSON.stringify({
 							action: "updatePartMeasureNotes",
 							composerId: STATE.composerId,
@@ -2548,6 +2599,107 @@
 				// remove from selection
 					unselectNotes(notes)
 					revertNotes()
+			} catch (error) {console.log(error)}
+		}
+
+/*** notes - history ***/
+	/* rememberNoteAction */
+		function rememberNoteAction(action, notes) {
+			try {
+				// remove all events after index
+					STATE.selected.history.splice(STATE.selected.historyIndex, STATE.selected.history.length - STATE.selected.historyIndex)
+
+				// add new event
+					STATE.selected.history.push({action: action, notes: notes})
+
+				// set index to end
+					STATE.selected.historyIndex = STATE.selected.history.length
+			} catch (error) {console.log(error)}
+		}
+
+	/* undoNoteAction */
+		function undoNoteAction() {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// get action & notes from history
+					if (!STATE.selected.history.length || !STATE.selected.history[STATE.selected.historyIndex - 1]) {
+						showToast({success: false, message: "no action to undo"})
+						return
+					}
+					let action = STATE.selected.history[STATE.selected.historyIndex - 1].action
+					let notes  = STATE.selected.history[STATE.selected.historyIndex - 1].notes
+					STATE.selected.historyIndex--
+
+				// flip action
+					if (action == "addPartMeasureNotes") {
+						action = "deletePartMeasureNotes"
+					}
+					else if (action == "deletePartMeasureNotes") {
+						action = "addPartMeasureNotes"
+					}
+					else if (action == "updatePartMeasureNotes") {
+						notes = JSON.parse(JSON.stringify(notes))
+						for (let n in notes) {
+							const tempNotes = notes[n].before
+							notes[n].before = notes[n].after
+							notes[n].after  = tempNotes
+						}
+					}
+					else {
+						showToast({success: false, message: "unknown action to undo"})
+						return
+					}
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: action,
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: STATE.selected.partId,
+						notes: notes
+					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* redoNoteAction */
+		function redoNoteAction() {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// get action & notes from history
+					if (!STATE.selected.history.length || !STATE.selected.history[STATE.selected.historyIndex]) {
+						showToast({success: false, message: "no action to redo"})
+						return
+					}
+					const action = STATE.selected.history[STATE.selected.historyIndex].action
+					const notes  = STATE.selected.history[STATE.selected.historyIndex].notes
+					STATE.selected.historyIndex++
+
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: action,
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+						partId: STATE.selected.partId,
+						notes: notes
+					}))
 			} catch (error) {console.log(error)}
 		}
 
@@ -2908,6 +3060,52 @@
 						event.preventDefault()
 						return
 					}
+			} catch (error) {console.log(error)}
+		}
+
+	/* selectAllNotes */
+		function selectAllNotes() {
+			try {
+				// playing
+					if (STATE.playback.playing) {
+						return
+					}
+					
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// prevent default
+					event.preventDefault()
+
+				// lists
+					const notes = []
+					const noteElements = Array.from(ELEMENTS.content.parts[STATE.selected.partId].measuresContainer.querySelectorAll(".part-measure-note"))
+
+				// loop through
+					for (let n in noteElements) {
+						const noteElement = noteElements[n]
+						const measureNumber = Number(noteElement.closest(".part-measure").getAttribute("measure"))
+						const tick = Number(noteElement.getAttribute("actual-tick"))
+						const pitch = Number(noteElement.getAttribute("actual-pitch"))
+						const duration = Number(noteElement.getAttribute("actual-duration"))
+
+						const note = {
+							id: measureNumber + "." + tick + ":" + pitch,
+							element: noteElement,
+							measureNumber: measureNumber,
+							tick: tick,
+							pitch: pitch,
+							duration: duration,
+							end: false
+						}
+
+						notes.push(note)
+					}
+
+				// select
+					selectNotes(notes)
 			} catch (error) {console.log(error)}
 		}
 

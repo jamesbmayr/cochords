@@ -1543,7 +1543,9 @@
 
 				// already being edited by someone else
 					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", recipients: [REQUEST.session.id]})
+						const previousData = {parts: {}}
+							previousData.parts[partId] = music.parts[partId]
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1770,58 +1772,35 @@
 
 				// already being edited by someone else
 					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", recipients: [REQUEST.session.id]})
+						const previousData = {parts: {}}
+							previousData.parts[partId] = music.parts[partId]
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
-				// validate notes
-					const lastMeasureNumber = Object.keys(music.measureTicks).length
+				// validate & adjust notes
 					const newNotes = REQUEST.post.notes || []
-
-				// move notes
-					noteLoop: for (let n = 0; n < newNotes.length; n++) {
-						// updated note
-							const newNote = newNotes[n]
-
+					for (let n = 0; n < newNotes.length; n++) {
 						// impossible note
-							if (!newNote || !newNote.pitch || (newNote.pitch < CONSTANTS.lowestPitch || newNote.pitch > CONSTANTS.highestPitch) || !newNote.duration) {
+							if (!newNotes[n] || !newNotes[n].pitch || (newNotes[n].pitch < CONSTANTS.lowestPitch || newNotes[n].pitch > CONSTANTS.highestPitch) || !newNotes[n].duration) {
 								newNotes.splice(n, 1)
 								n--
 								continue
 							}
 
 						// find new measure
-							newNote.newMeasureNumber = Number(newNote.measureNumber)
-							if (newNote.tick < 0) {
-								while (newNote.tick < 0) {
-									newNote.newMeasureNumber--
-									if (newNote.newMeasureNumber && music.measureTicks[String(newNote.newMeasureNumber)]) {
-										newNote.tick += music.measureTicks[String(newNote.newMeasureNumber)]
-									}
-									if (!newNote.newMeasureNumber) {
-										newNotes.splice(n, 1)
-										n--
-										continue noteLoop
-									}
-								}
+							const adjustedNote = getTimeAdjustedNote(music.measureTicks, newNotes[n])
+							if (!adjustedNote) {
+								newNotes.splice(n, 1)
+								n--
+								continue
 							}
-
-							if (newNote.tick >= music.measureTicks[String(newNote.newMeasureNumber)]) {
-								while (newNote.tick >= music.measureTicks[String(newNote.newMeasureNumber)]) {
-									newNote.tick -= music.measureTicks[String(newNote.newMeasureNumber)]
-									newNote.newMeasureNumber++
-									if (newNote.newMeasureNumber > lastMeasureNumber) {
-										newNotes.splice(n, 1)
-										n--
-										continue noteLoop
-									}
-								}
-							}
+							newNotes[n] = adjustedNote
 					}
 
 				// no valid notes
 					if (!newNotes.length) {
-						callback({musicId: musicId, success: false, message: "no valid notes", recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "no valid notes to add", recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1844,21 +1823,20 @@
 								const newNote = newNotes[n]
 
 							// get measure number
-								const measureNumber = Number(newNote.newMeasureNumber) || 0
-								if (!updatedParts[partId].measures[String(measureNumber)]) {
-									updatedParts[partId].measures[String(measureNumber)] = {notes: part.measures[measureNumber].notes}
+								if (!updatedParts[partId].measures[String(newNote.measureNumber)]) {
+									updatedParts[partId].measures[String(newNote.measureNumber)] = {notes: part.measures[String(newNote.measureNumber)].notes}
 								}
 
 							// notes
-								if (!updatedParts[partId].measures[measureNumber].notes[String(newNote.tick)]) {
-									updatedParts[partId].measures[measureNumber].notes[String(newNote.tick)] = {}
-									updatedParts[partId].measures[measureNumber].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
-									query.document["parts." + partId + ".measures." + measureNumber + ".notes." + newNote.tick] = {}
-									query.document["parts." + partId + ".measures." + measureNumber + ".notes." + newNote.tick][String(newNote.pitch)] = newNote.duration
+								if (!updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)]) {
+									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)] = {}
+									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick] = {}
+									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick][String(newNote.pitch)] = newNote.duration
 								}
 								else {
-									updatedParts[partId].measures[measureNumber].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
-									query.document["parts." + partId + ".measures." + measureNumber + ".notes." + newNote.tick + "." + newNote.pitch] = newNote.duration
+									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick + "." + newNote.pitch] = newNote.duration
 								}
 						}
 
@@ -1900,70 +1878,36 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
-				// notes
-					const updatedNotes = REQUEST.post.notes
-					if (!REQUEST.post.notes || !REQUEST.post.notes.length) {
-						callback({musicId: musicId, success: false, message: "no notes selected to change", recipients: [REQUEST.session.id]})
-						return
-					}
-
-				// previous data
-					const lastMeasureNumber = Object.keys(music.measureTicks).length
-					const previousData = {parts: {}}
-						previousData.parts[partId] = {measures: {}}
-						for (let n in updatedNotes) {
-							const measureNumber = updatedNotes[n].measureNumber
-							if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
-								callback({musicId: musicId, success: false, message: "cannot update notes in measure " + measureNumber, recipients: [REQUEST.session.id]})
-								return
-							}
-							previousData.parts[partId].measures[measureNumber] = {notes: part.measures[measureNumber].notes}
-						}
-
 				// already being edited by someone else
 					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						const previousData = {parts: {}}
+							previousData.parts[partId] = music.parts[partId]
 						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
-				// loop through notes
-					for (let n in updatedNotes) {
-						// updated note
-							const updatedNote = updatedNotes[n]
-
+				// validate & adjust notes
+					const updatedNotes = REQUEST.post.notes || []
+					for (let n = 0; n < updatedNotes.length; n++) {
 						// impossible note
-							let noteBefore = updatedNote.noteBefore
-							let noteAfter = updatedNote.noteAfter
-							if (!noteAfter || !noteAfter.pitch || (noteAfter.pitch < CONSTANTS.lowestPitch || noteAfter.pitch > CONSTANTS.highestPitch) || !noteAfter.duration) {
-								callback({musicId: musicId, success: false, message: "invalid note", music: previousData, recipients: [REQUEST.session.id]})
-								return
+							if (!updatedNotes[n] || 
+								!updatedNotes[n].before || !updatedNotes[n].before.pitch || (updatedNotes[n].before.pitch < CONSTANTS.lowestPitch || updatedNotes[n].before.pitch > CONSTANTS.highestPitch) || !updatedNotes[n].before.duration ||
+								!updatedNotes[n].after  || !updatedNotes[n].after.pitch  || (updatedNotes[n].after.pitch  < CONSTANTS.lowestPitch || updatedNotes[n].after.pitch  > CONSTANTS.highestPitch) || !updatedNotes[n].after.duration) {
+								updatedNotes.splice(n, 1)
+								n--
+								continue
 							}
 
 						// find new measure
-							updatedNote.newMeasureNumber = Number(updatedNote.measureNumber)
-							if (noteAfter.tick < 0) {
-								while (noteAfter.tick < 0) {
-									updatedNote.newMeasureNumber--
-									if (updatedNote.newMeasureNumber && music.measureTicks[String(updatedNote.newMeasureNumber)]) {
-										noteAfter.tick += music.measureTicks[String(updatedNote.newMeasureNumber)]
-									}
-									if (!updatedNote.newMeasureNumber) {
-										callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
-										return
-									}
-								}
+							const adjustedNoteBefore = getTimeAdjustedNote(music.measureTicks, updatedNotes[n].before)
+							const adjustedNoteAfter  = getTimeAdjustedNote(music.measureTicks, updatedNotes[n].after)
+							if (!adjustedNoteBefore || !adjustedNoteAfter) {
+								updatedNotes.splice(n, 1)
+								n--
+								continue
 							}
-
-							if (noteAfter.tick >= music.measureTicks[updatedNote.newMeasureNumber]) {
-								while (noteAfter.tick >= music.measureTicks[String(updatedNote.newMeasureNumber)]) {
-									noteAfter.tick -= music.measureTicks[String(updatedNote.newMeasureNumber)]
-									updatedNote.newMeasureNumber++
-									if (updatedNote.newMeasureNumber > lastMeasureNumber) {
-										callback({musicId: musicId, success: false, message: "invalid note placement", music: previousData, recipients: [REQUEST.session.id]})
-										return
-									}
-								}
-							}
+							updatedNotes[n].before = adjustedNoteBefore
+							updatedNotes[n].after  = adjustedNoteAfter
 					}
 
 				// query
@@ -1984,33 +1928,33 @@
 							const note = updatedNotes[n]
 
 						// remove old note
-							updatedParts[partId].measures[note.measureNumber] = {notes: part.measures[note.measureNumber].notes}
-							if (updatedParts[partId].measures[note.measureNumber].notes[String(note.noteBefore.tick)]) {
-								delete updatedParts[partId].measures[note.measureNumber].notes[String(note.noteBefore.tick)][String(note.noteBefore.pitch)]
+							updatedParts[partId].measures[String(note.before.measureNumber)] = {notes: part.measures[String(note.before.measureNumber)].notes}
+							if (updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]) {
+								delete updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)][String(note.before.pitch)]
 
 								// only pitch at this tick?
-									if (!Object.keys(updatedParts[partId].measures[note.measureNumber].notes[String(note.noteBefore.tick)]).length) {
-										delete updatedParts[partId].measures[note.measureNumber].notes[String(note.noteBefore.tick)]
-										query.document["parts." + partId + ".measures." + note.measureNumber + ".notes." + note.noteBefore.tick] = null
+									if (!Object.keys(updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]).length) {
+										delete updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]
+										query.document["parts." + partId + ".measures." + note.before.measureNumber + ".notes." + note.before.tick] = null
 									}
 									else {
-										query.document["parts." + partId + ".measures." + note.measureNumber + ".notes." + note.noteBefore.tick + "." + note.noteBefore.pitch] = null
+										query.document["parts." + partId + ".measures." + note.before.measureNumber + ".notes." + note.before.tick + "." + note.before.pitch] = null
 									}
 							}
 
 						// set new note
-							if (note.newMeasureNumber !== note.measureNumber) {
-								updatedParts[partId].measures[note.newMeasureNumber] = {notes: part.measures[note.newMeasureNumber].notes}
+							if (note.after.measureNumber !== note.before.measureNumber) {
+								updatedParts[partId].measures[String(note.after.measureNumber)] = {notes: part.measures[String(note.after.measureNumber)].notes}
 							}
-							if (!updatedParts[partId].measures[note.newMeasureNumber].notes[String(note.noteAfter.tick)]) {
-								updatedParts[partId].measures[note.newMeasureNumber].notes[String(note.noteAfter.tick)] = {}
-								updatedParts[partId].measures[note.newMeasureNumber].notes[String(note.noteAfter.tick)][String(note.noteAfter.pitch)] = note.noteAfter.duration
-								query.document["parts." + partId + ".measures." + note.newMeasureNumber + ".notes." + note.noteAfter.tick] = {}
-								query.document["parts." + partId + ".measures." + note.newMeasureNumber + ".notes." + note.noteAfter.tick][String(note.noteAfter.pitch)] = note.noteAfter.duration
+							if (!updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)]) {
+								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)] = {}
+								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)][String(note.after.pitch)] = note.after.duration
+								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick] = {}
+								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick][String(note.after.pitch)] = note.after.duration
 							}
 							else {
-								updatedParts[partId].measures[note.newMeasureNumber].notes[String(note.noteAfter.tick)][String(note.noteAfter.pitch)] = note.noteAfter.duration
-								query.document["parts." + partId + ".measures." + note.newMeasureNumber + ".notes." + note.noteAfter.tick + "." + note.noteAfter.pitch] = note.noteAfter.duration
+								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)][String(note.after.pitch)] = note.after.duration
+								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick + "." + note.after.pitch] = note.after.duration
 							}
 					}
 
@@ -2052,29 +1996,37 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
-				// notes
-					const oldNotes = REQUEST.post.notes
-					if (!REQUEST.post.notes || !REQUEST.post.notes.length) {
-						callback({musicId: musicId, success: false, message: "no notes selected for deletion", recipients: [REQUEST.session.id]})
+				// already being edited by someone else
+					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
+						const previousData = {parts: {}}
+							previousData.parts[partId] = music.parts[partId]
+						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
-				// previous data
-					const lastMeasureNumber = Object.keys(music.measureTicks).length
-					const previousData = {parts: {}}
-						previousData.parts[partId] = {measures: {}}
-						for (let n in oldNotes) {
-							const measureNumber = oldNotes[n].measureNumber
-							if (!measureNumber || measureNumber < 0 || measureNumber > lastMeasureNumber) {
-								callback({musicId: musicId, success: false, message: "cannot remove notes from measure " + measureNumber, recipients: [REQUEST.session.id]})
-								return
+				// validate & adjust notes
+					const oldNotes = REQUEST.post.notes || []
+					for (let n = 0; n < oldNotes.length; n++) {
+						// impossible note
+							if (!oldNotes[n] || !oldNotes[n].pitch || (oldNotes[n].pitch < CONSTANTS.lowestPitch || oldNotes[n].pitch > CONSTANTS.highestPitch) || !oldNotes[n].duration) {
+								oldNotes.splice(n, 1)
+								n--
+								continue
 							}
-							previousData.parts[partId].measures[measureNumber] = {notes: part.measures[measureNumber].notes}
-						}
 
-				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						// find new measure
+							const adjustedNote = getTimeAdjustedNote(music.measureTicks, oldNotes[n])
+							if (!adjustedNote) {
+								oldNotes.splice(n, 1)
+								n--
+								continue
+							}
+							oldNotes[n] = adjustedNote
+					}
+
+				// no valid notes
+					if (!oldNotes.length) {
+						callback({musicId: musicId, success: false, message: "no valid notes to delete", recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -2094,13 +2046,13 @@
 					// remove old notes
 						for (let n in oldNotes) {
 							const oldNote = oldNotes[n]
-							updatedParts[partId].measures[oldNote.measureNumber] = {notes: part.measures[oldNote.measureNumber].notes}
-							if (updatedParts[partId].measures[oldNote.measureNumber].notes[String(oldNote.tick)]) {
-								delete updatedParts[partId].measures[oldNote.measureNumber].notes[String(oldNote.tick)][String(oldNote.pitch)]
+							updatedParts[partId].measures[String(oldNote.measureNumber)] = {notes: part.measures[String(oldNote.measureNumber)].notes}
+							if (updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]) {
+								delete updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)][String(oldNote.pitch)]
 
 								// only pitch at this tick?
-									if (!Object.keys(updatedParts[partId].measures[oldNote.measureNumber].notes[String(oldNote.tick)]).length) {
-										delete updatedParts[partId].measures[oldNote.measureNumber].notes[String(oldNote.tick)]
+									if (!Object.keys(updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]).length) {
+										delete updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]
 										query.document["parts." + partId + ".measures." + oldNote.measureNumber + ".notes." + oldNote.tick] = null
 									}
 									else {
@@ -2132,5 +2084,40 @@
 			catch (error) {
 				CORE.logError(error)
 				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
+			}
+		}
+
+/*** helpers ***/
+	/* getTimeAdjustedNote */
+		function getTimeAdjustedNote(measureTicks, note) {
+			try {
+				// assume same
+					note.measureNumber = Number(note.measureNumber)
+					const lastMeasureNumber = Object.keys(measureTicks).length
+
+				// go back
+					while (note.tick < 0) {
+						note.measureNumber--
+						if (!note.measureNumber) {
+							return null
+						}
+						note.tick += measureTicks[String(note.measureNumber)]						
+					}
+
+				// go forward
+					while (note.tick >= measureTicks[String(note.measureNumber)]) {
+						note.tick -= measureTicks[String(note.measureNumber)]
+						note.measureNumber++
+						if (note.measureNumber > lastMeasureNumber) {
+							return null
+						}
+					}
+
+				// return
+					return note
+			}
+			catch (error) {
+				CORE.logError(error)
+				return null
 			}
 		}
