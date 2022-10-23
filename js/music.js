@@ -195,6 +195,7 @@
 			keyboardListeners: {},
 			playback: {
 				loop: null,
+				recording: false,
 				playing: false,
 				swing: false,
 				looping: false,
@@ -259,6 +260,7 @@
 
 	/* elements */
 		const ELEMENTS = {
+			title: document.querySelector("title"),
 			body: document.body,
 			header: {
 				name: document.querySelector("#header-file-name"),
@@ -272,6 +274,7 @@
 				loop: document.querySelector("#header-playback-loop"),
 				metronome: document.querySelector("#header-playback-metronome"),
 				tempoMultiplier: document.querySelector("#header-playback-tempo-multiplier"),
+				record: document.querySelector("#header-playback-record"),
 				play: document.querySelector("#header-playback-play"),
 				uploadSynth: document.querySelector("#header-playback-upload-synth-input"),
 			},
@@ -561,6 +564,7 @@
 				// set title
 					STATE.music.title = title.trim()
 					ELEMENTS.header.title.value = STATE.music.title
+					ELEMENTS.title.innerText = "CoChords" + (STATE.music.title ? " | " + STATE.music.title : "")
 
 				// store
 					updateStorage()
@@ -823,6 +827,36 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* setRecording */
+		ELEMENTS.header.record.addEventListener(TRIGGERS.change, setRecording)
+		function setRecording(event) {
+			try {
+				// no audio
+					if (!AUDIO_J.audio) {
+						ELEMENTS.header.record.checked = false
+						STATE.playback.recording = false
+						return
+					}
+
+				// not playing --> be ready
+					if (!STATE.playback.playing) {
+						STATE.playback.recording = Boolean(ELEMENTS.header.record.checked)
+						return
+					}
+
+				// playing & recording --> cancel
+					if (STATE.playback.recording) {
+						STATE.playback.recording = false
+						AUDIO_J.stopRecording()
+						return
+					}
+
+				// playing --> start recording
+					STATE.playback.recording = true
+					AUDIO_J.startRecording()
+			} catch (error) {console.log(error)}
+		}
+
 	/* setPlaying */
 		ELEMENTS.header.play.addEventListener(TRIGGERS.change, setPlaying)
 		function setPlaying(event) {
@@ -873,6 +907,11 @@
 								addNotes(STATE.selected.notesFromMidiInput.complete)
 								STATE.selected.notesFromMidiInput.complete = []
 							}
+
+						// output recording
+							if (STATE.playback.recording) {
+								AUDIO_J.stopRecording()
+							}
 						return
 					}
 
@@ -904,6 +943,11 @@
 							}) || null
 							
 							STATE.playback.partDynamics[p] = measuresWithDynamics ? STATE.music.parts[p].measures[measuresWithDynamics[measuresWithDynamics.length - 1]].dynamics : 0
+					}
+
+				// start recording
+					if (STATE.playback.recording) {
+						AUDIO_J.startRecording()
 					}
 
 				// playback
@@ -3169,6 +3213,11 @@
 					if (STATE.selected.notesFromMidiInput.complete.length) {
 						addNotes(STATE.selected.notesFromMidiInput.complete)
 						STATE.selected.notesFromMidiInput.complete = []
+					}
+
+				// output recording
+					if (STATE.playback.recording) {
+						AUDIO_J.stopRecording()
 					}
 			} catch (error) {console.log(error)}
 		}
