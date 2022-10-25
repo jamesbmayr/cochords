@@ -624,6 +624,7 @@
 				box-sizing: border-box;
 				text-align: center;
 				border-radius: 0;
+				user-select: none;
 			}
 
 			.music-measure-delete {
@@ -1137,6 +1138,15 @@
 				box-shadow: 0 0 0 var(--border-size) var(--lightblue);
 			}
 
+			#selection-box {
+				position: absolute;
+				border-radius: calc(var(--border-radius) / 2);
+				background: var(--light-blue);
+				opacity: 0.25;
+				pointer-events: none;
+				box-sizing: border-box;
+			}
+
 		/* individual - after */
 			.part-spacer {
 				width: auto;
@@ -1224,6 +1234,7 @@
 			line-height: 1.5;
 			padding: var(--small-gap-size);
 			transition: var(--transition-time);
+			user-select: none;
 		}
 
 		#help[open] #help-button {

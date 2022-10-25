@@ -22,6 +22,7 @@
 
 	/* constants */
 		const CONSTANTS = {
+			rounding: 10e6,
 			second: 1000, // ms
 			minute: 1000 * 60, // ms
 			pingLoop: 1000 * 60, // ms
@@ -2369,7 +2370,7 @@
 					for (let n in notes) {
 						const id = notes[n].id || (notes[n].measureNumber + "." + notes[n].tick + ":" + notes[n].pitch)
 						
-						const noteElement = notes[n].element || ELEMENTS.content.parts[partId].measures[notes[n].measureNumber].notesContainer.querySelector("[actual-tick='" + notes[n].tick + "'][actual-pitch='" + notes[n].pitch + "'][actual-duration='" + notes[n].duration + "']")
+						const noteElement = notes[n].element || ELEMENTS.content.parts[STATE.selected.partId].measures[notes[n].measureNumber].notesContainer.querySelector("[actual-tick='" + notes[n].tick + "'][actual-pitch='" + notes[n].pitch + "'][actual-duration='" + notes[n].duration + "']")
 							noteElement.setAttribute("selected", true)
 							noteElement.setAttribute("interim-tick", notes[n].tick)
 							noteElement.setAttribute("interim-pitch", notes[n].pitch)
@@ -2816,6 +2817,9 @@
 						duration: CONSTANTS.ticksPerBeat
 					}
 					addNotes([note], true)
+
+				// cancel box
+					STATE.cursor.held = false
 			} catch (error) {console.log(error)}
 		}
 
@@ -2908,8 +2912,19 @@
 	/* moveMouse */
 		function moveMouse(event) {
 			try {
-				// nothing selected
-					if (!STATE.selected.partId || !STATE.cursor.held || !Object.keys(STATE.selected.notes).length) {
+				// no part selected
+					if (!STATE.selected.partId) {
+						return
+					}
+
+				// not held
+					if (!STATE.cursor.held) {
+						return
+					}
+
+				// no notes --> selection box
+					if (!Object.keys(STATE.selected.notes).length || STATE.keyboard.shift) {
+						updateSelectionBox(event)
 						return
 					}
 
@@ -2948,6 +2963,9 @@
 						return
 					}
 
+				// release
+					STATE.cursor.held = false
+
 				// unselecting something
 					if (STATE.cursor.element) {
 						const noteElement = STATE.cursor.element.closest(".part-measure-note")
@@ -2964,35 +2982,177 @@
 						}
 						
 						STATE.cursor.element = null
+						return
+					}
+
+				// no part
+					if (!STATE.selected.partId) {
+						return
 					}
 
 				// interim pitches
-					for (let n in STATE.selected.notes) {
-						const note = STATE.selected.notes[n]
-						note.element.setAttribute("interim-tick", note.element.getAttribute("tick"))
-						note.element.setAttribute("interim-pitch", note.element.getAttribute("pitch"))
-						note.element.setAttribute("interim-duration", note.element.getAttribute("duration"))
+					if (!ELEMENTS.content.selectionBox && Object.keys(STATE.selected.notes).length) {
+						for (let n in STATE.selected.notes) {
+							const note = STATE.selected.notes[n]
+								note.element.setAttribute("interim-tick", note.element.getAttribute("tick"))
+								note.element.setAttribute("interim-pitch", note.element.getAttribute("pitch"))
+								note.element.setAttribute("interim-duration", note.element.getAttribute("duration"))
+						}
+						return
 					}
 
-				// release mouse
-					STATE.cursor.held = false
+				// selection box?
+					// not held
+						if (!ELEMENTS.content.selectionBox) {
+							return
+						}
+
+					// update box
+						const selectionBox = updateSelectionBox(event)
+						if (!selectionBox) {
+							ELEMENTS.content.selectionBox.remove()
+							delete ELEMENTS.content.selectionBox
+							return
+						}
+
+					// get pitches
+						const notes = []
+						for (let m = selectionBox.startMeasure; m <= selectionBox.endMeasure; m++) {
+							const measure = STATE.music.parts[STATE.selected.partId].measures[String(m)]
+							for (let n in measure.notes) {
+								if (m == selectionBox.startMeasure && Number(n) < selectionBox.startTick) {
+									continue
+								}
+								if (m == selectionBox.endMeasure && Number(n) > selectionBox.endTick) {
+									continue
+								}
+								for (let p in measure.notes[n]) {
+									if (Number(p) < selectionBox.startPitch || Number(p) > selectionBox.endPitch) {
+										continue
+									}
+									const note = {
+										id: m + "." + n + ":" + p,
+										measureNumber: m,
+										tick: n,
+										duration: measure.notes[n][p],
+										pitch: p,
+										end: false
+									}
+									notes.push(note)
+								}
+							}
+						}
+						if (notes.length) {
+							selectNotes(notes)
+						}
 			} catch (error) {console.log(error)}
 		}
 
 	/* downMouseOnContainer */
 		function downMouseOnContainer(event) {
 			try {
-				// set cursor
-					const measureNumber = Number(event.target.closest(".part-measure").getAttribute("measure"))
-					setCursorState(event, {measureNumber: measureNumber})
-
-				// nothing selected
-					if (!STATE.selected.partId || !Object.keys(STATE.selected.notes).length) {
+				// no part
+					if (!STATE.selected.partId) {
 						return
 					}
 
+				// set cursor
+					const notesContainer = event.target.closest(".part-measure-notes")
+					const measureNumber = Number(notesContainer.parentNode.getAttribute("measure"))
+					setCursorState(event, {measureNumber: measureNumber})
+					STATE.cursor.held = true
+
 				// update notes
-					updateNotes()
+					if (Object.keys(STATE.selected.notes).length && !STATE.keyboard.shift) {
+						updateNotes()
+					}
+
+				// right-click --> create new note
+					if (event.button == 2 || event.ctrlKey || event.mobileContextMenu) {
+						event.preventDefault()
+						return
+					}
+
+				// start a box
+					updateSelectionBox(event)
+			} catch (error) {console.log(error)}
+		}
+
+	/* updateSelectionBox */
+		function updateSelectionBox(event) {
+			try {
+				// cursor position
+					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.changedTouches && event.changedTouches.length ? event.changedTouches[0].clientX : event.clientX
+					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.changedTouches && event.changedTouches.length ? event.changedTouches[0].clientY : event.clientY
+					const notesContainer = event.target.closest(".part-measure-notes")
+					const measureElement = event.target.closest(".part-measure")
+					if (!notesContainer || !measureElement) {
+						return
+					}
+
+				// info
+					const measureRect = measureElement.getBoundingClientRect()
+					const measureNumber = Number(measureElement.getAttribute("measure"))
+					const ticksFromLeft = Math.max(0, Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth))
+					const pitchesFromTop = Math.max(0, Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight))
+
+					if (measureNumber < 1 || measureNumber > Object.keys(STATE.music.measureTicks).length) {
+						return
+					}
+
+				// get box parameters
+					const startTime  = Math.min(measureNumber + ticksFromLeft / CONSTANTS.rounding, STATE.cursor.measureNumber + STATE.cursor.ticksFromLeft / CONSTANTS.rounding)
+						const startMeasure = Math.floor(startTime)
+						const startTick    = Math.round((startTime % 1) * CONSTANTS.rounding)
+					const endTime    = Math.max(measureNumber + ticksFromLeft / CONSTANTS.rounding, STATE.cursor.measureNumber + STATE.cursor.ticksFromLeft / CONSTANTS.rounding)
+						const endMeasure = Math.floor(endTime)
+						const endTick    = Math.round((endTime % 1) * CONSTANTS.rounding)
+					const startPitch = Math.min(CONSTANTS.highestPitch - pitchesFromTop, CONSTANTS.highestPitch - STATE.cursor.pitchesFromTop)
+					const endPitch   = Math.max(CONSTANTS.highestPitch - pitchesFromTop, CONSTANTS.highestPitch - STATE.cursor.pitchesFromTop)
+
+				// down --> create box
+					if (event.type == TRIGGERS.mousedown || !ELEMENTS.content.selectionBox) {
+						const selectionBox = document.createElement("div")
+							selectionBox.id = "selection-box"
+						notesContainer.appendChild(selectionBox)
+						ELEMENTS.content.selectionBox = selectionBox
+					}
+
+				// move --> adjust box
+					if (event.type == TRIGGERS.mousemove && ELEMENTS.content.selectionBox) {
+						const startNotesContainer = ELEMENTS.content.parts[STATE.selected.partId].measures[String(startMeasure)].notesContainer
+						const endNotesContainer   = ELEMENTS.content.parts[STATE.selected.partId].measures[String(endMeasure)].notesContainer
+						if (ELEMENTS.content.selectionBox.parentNode !== startNotesContainer) {
+							startNotesContainer.appendChild(ELEMENTS.content.selectionBox)
+						}
+
+						let pitchDifference = endPitch - startPitch
+						let tickDifference = endTick - startTick
+						for (let m = startMeasure; m < endMeasure; m++) {
+							tickDifference += STATE.music.measureTicks[String(m)]
+						}
+
+						ELEMENTS.content.selectionBox.style.top = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (CONSTANTS.highestPitch - endPitch) + ")"
+						ELEMENTS.content.selectionBox.style.height = "calc(var(--pitch-height) * var(--pitch-height-modifier) * " + (pitchDifference + 1) + ")"
+						ELEMENTS.content.selectionBox.style.left = "calc(var(--tick-width) * " + startTick + ")"
+						ELEMENTS.content.selectionBox.style.width = "calc(var(--tick-width) * " + (tickDifference + 1) + ")"
+					}
+
+				// up --> delete box
+					if (event.type == TRIGGERS.mouseup && ELEMENTS.content.selectionBox) {
+						ELEMENTS.content.selectionBox.remove()
+						delete ELEMENTS.content.selectionBox
+					}
+
+				// return info
+					return {
+						startMeasure: startMeasure,
+						startTick: startTick,
+						startPitch: startPitch,
+						endMeasure: endMeasure,
+						endTick: endTick,
+						endPitch: endPitch
+					}
 			} catch (error) {console.log(error)}
 		}
 
