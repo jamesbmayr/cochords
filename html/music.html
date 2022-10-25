@@ -16,8 +16,23 @@
 		<div id="header">
 			<div id="header-file" class="row">
 				<div class="left-column">
-					<div id="header-file-name-outer">
-						<input id="header-file-name" type="text" placeholder="YOUR NAME" autocomplete="off" spellcheck="false" title="your name">
+					<label id="header-sidebar-collapse-outer" title="play/pause" class="pseudo-button">
+						<input id="header-sidebar-collapse" type="checkbox" checked>
+						<div>&equiv;</div>
+					</label>
+					<div id="header-playback-controls">
+						<label id="header-playback-play-outer" title="play/pause" class="pseudo-button">
+							<input id="header-playback-play" type="checkbox">
+							<div>&nbsp;&nbsp;&#9654;</div>
+						</label>
+						<label id="header-playback-record-outer" title="record to audio file" class="pseudo-button">
+							<input id="header-playback-record" type="checkbox">
+							<div>&#x2707;</div>
+						</label>
+						<label id="header-playback-loop-outer" title="loop playback" class="pseudo-button">
+							<input id="header-playback-loop" type="checkbox">
+							<div>&#10226;</div>
+						</label>
 					</div>
 				</div>
 				<div class="right-column">
@@ -25,47 +40,9 @@
 					<div id="header-file-by">-</div>
 					<input id="header-file-composer" type="text" placeholder="COMPOSER(S)" autocomplete="off" spellcheck="false" title="music composers">
 					<button id="header-file-download" title="download musicXML file">&darr;&nbsp;SCORE</button>
-				</div>
-			</div>
-			<div id="header-playback" class="row">
-				<div class="left-column">
-					<button id="header-sidebar-collapse">&equiv;</button>
-					<label id="header-playback-swing-outer" title="swing" class="pseudo-button">
-						<input id="header-playback-swing" type="checkbox">
-						<div>&#x266B;&nbsp;swing</div>
-					</label>
-				</div>
-				<div class="right-column">
-					<div id="header-playback-measures-outer">
-						<div id="header-playback-measures-m">#</div>
-						<input id="header-playback-measures-current" type="number" min="1" max="1" step="1" value="1" placeholder="measure" autocomplete="off">
-						<div id="header-playback-measures-slash">/</div>
-						<output id="header-playback-measures-total"></output>
-						<label id="header-playback-loop-outer" title="loop playback" class="pseudo-button">
-						<input id="header-playback-loop" type="checkbox">
-						<div>&#10226;</div>
-					</label>
-					</div>
-					<div id="header-playback-controls-outer">
-						<label id="header-playback-metronome-outer" title="metronome" class="pseudo-button">
-							<input id="header-playback-metronome" type="checkbox">
-							<div id="header-playback-metronome-shape">&#9750;</div>
-							<div id="header-playback-metronome-pendulum">|</div>
-						</label>
-						<input type="number" id="header-playback-tempo-multiplier" step="0.1" min="0.1" max="3" value="1" title="tempo multiplier" placeholder="SPEED">
-						<div id="header-playback-tempo-multiplier-x">&times;</div>
-						<label id="header-playback-record-outer" title="record to audio file" class="pseudo-button">
-							<input id="header-playback-record" type="checkbox">
-							<div>&#x2707;</div>
-						</label>
-						<label id="header-playback-play-outer" title="play/pause" class="pseudo-button">
-							<input id="header-playback-play" type="checkbox">
-							<div>&#9654;play</div>
-						</label>
-					</div>
-					<label id="header-playback-upload-synth-outer" title="upload synth JSON" class="pseudo-button">
+					<label id="header-file-upload-synth-outer" title="upload synth JSON" class="pseudo-button">
 						<div>&uarr;&nbsp;synth</div>
-						<input id="header-playback-upload-synth-input" type="file">
+						<input id="header-file-upload-synth-input" type="file">
 					</label>
 				</div>
 			</div>
@@ -76,9 +53,31 @@
 				<thead id="content-measures-outer">
 					<tr id="content-measures">
 						<th id="content-measures-text">
-							<div class="measures-text">|&nbsp;bars</div>
-							<div class="measures-text">&#x2669;beats</div>
-							<div class="measures-text">tempo</div>
+							<div class="measures-text">
+								<span>bars</span>
+								<div id="content-measures-position-outer">
+									<input id="content-measures-position-current" type="number" min="1" max="1" step="1" value="1" placeholder="measure" autocomplete="off">
+									<div id="content-measures-position-slash">/</div>
+									<output id="content-measures-position-total"></output>
+								</div>
+							</div>
+							<div class="measures-text">
+								<span>beats</span>
+								<label id="content-measures-swing-outer" title="swing" class="pseudo-button">
+									<input id="content-measures-swing" type="checkbox">
+									<div>&#x266B;&nbsp;swing</div>
+								</label>
+							</div>
+							<div class="measures-text">
+								<span>bpm</span>
+								<label id="content-measures-metronome-outer" title="metronome" class="pseudo-button">
+									<input id="content-measures-metronome" type="checkbox">
+									<div id="content-measures-metronome-shape">&#9750;</div>
+									<div id="content-measures-metronome-pendulum">|</div>
+								</label>
+								<input type="number" id="content-measures-tempo-multiplier" step="0.1" min="0.1" max="3" value="1" title="tempo multiplier" placeholder="SPEED">
+								<div id="content-measures-tempo-multiplier-x">&times;</div>
+							</div>
 						</th>
 						<th id="content-measures-spacer"></th>
 						<th id="content-measures-add-outer">
@@ -101,27 +100,37 @@
 		<details id="help">
 			<summary id="help-button">?</summary>
 			<div id="help-content">
+				<label id="help-name-outer">
+					<span>YOUR NAME</span>
+					<input id="help-name" type="text" placeholder="YOUR NAME" autocomplete="off" spellcheck="false" title="your name">
+				</label>
 				<div>
-					<div>CONTROLS</div>
-					<li class="help-desktop">&darr;SCORE: download musicXML of full score</li>
-					<li>&#x266B;SWING: syncopation / shuffle (♪♪ &rarr; 3[♪♪]♪)</li>
+					<div>HEADER</div>
+					<li>&equiv;: toggle sidebar</li>
+					<li>&#9654;: toggle music playback</li>
+					<li>&#x2707;: record audio and export webm file</li>
 					<li>&#10226;: loop to restart immediately at the end</li>
-					<li>&#9750;: metronome tick sound on ♩</li>
-					<li>SPEED &times;: bpm multiplier</li>
-					<li class="help-desktop">&#x2707;: record audio and export webm file</li>
-					<li>&#9654;PLAY: toggle music playback</li>
+					<li>TITLE: name of this music</li>
+					<li>COMPOSER(S): writers of this music</li>
+					<li class="help-desktop">&darr;SCORE: download musicXML of full score</li>
 					<li class="help-desktop">&uarr;SYNTH: upload custom <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a></li>
+					<div>OPTIONS</div>
+					<li>BARS #/#: current measure position / total</li>
+					<li>&#x266B;SWING: syncopation / shuffle (♪♪ &rarr; 3[♪♪]♪)</li>
+					<li>&#9750;: metronome tick sound on ♩</li>
+					<li>BPM &times;: tempo multiplier</li>
 					<div>MEASURES</div>
 					<li>BARS: + to insert before, &times; to remove</li>
-					<li>BEATS: # ♩ quarter notes per measure</li>
-					<li>TEMPO: beats per minute, where ♩ is 1 beat</li>
+					<li>BEATS: #♩ quarter notes per measure</li>
+					<li>BPM: beats per minute, where ♩ is 1 beat</li>
 					<li>&#x2A01;: add measure to the end</li>
 					<div>PARTS</div>
-					<li>&#x270F;EDIT: take over editing for that part</li>
+					<li>&#x2710;EDIT: take over editing for that part</li>
 					<li>NAME: custom part name</li>
 					<li>MIDI: instrument name in MIDI standard</li>
 					<li>SYNTH: <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a> sound</li>
 					<li>MOVE&uarr;&darr;: reorder parts in the score</li>
+					<li>&larr;|&rarr;: playback panning (left &harr; right)</li>
 					<li>&#x1F508;: playback volume (not score dynamics)</li>
 					<li>DYNAMICS: intensity changes below measure</li>
 					<li>+PART: add another part to the score</li>
@@ -155,11 +164,11 @@
 					<li>escape: revert selection to original pitches & beats</li>
 					<div>NOTES - HOTKEYS</div>
 					<li>cmd/ctrl-A: select all notes in part</li>
-					<li>cmd/ctrl-Z: undo add/update/delete notes</li>
-					<li>shift cmd/ctrl-Z: redo add/update/delete notes</li>
-					<li>cmd/ctrl-X: cut selection</li>
 					<li>cmd/ctrl-C: copy selection</li>
 					<li>click + cmd/ctrl-V: paste selection at cursor click</li>
+					<li>cmd/ctrl-X: cut selection</li>
+					<li>cmd/ctrl-Z: undo add/update/delete notes</li>
+					<li>shift cmd/ctrl-Z: redo add/update/delete notes</li>
 				</div>
 				<div class="help-mobile">
 					<div>NOTES - MOBILE</div>

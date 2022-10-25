@@ -281,25 +281,24 @@
 			title: document.querySelector("title"),
 			body: document.body,
 			header: {
-				name: document.querySelector("#header-file-name"),
+				sidebarCollapse: document.querySelector("#header-sidebar-collapse"),
+				play: document.querySelector("#header-playback-play"),
+				record: document.querySelector("#header-playback-record"),
+				loop: document.querySelector("#header-playback-loop"),
 				title: document.querySelector("#header-file-title"),
 				composer: document.querySelector("#header-file-composer"),
 				downloadMusicXML: document.querySelector("#header-file-download"),
-				sidebarCollapse: document.querySelector("#header-sidebar-collapse"),
-				swing: document.querySelector("#header-playback-swing"),
-				measuresCurrent: document.querySelector("#header-playback-measures-current"),
-				measuresTotal: document.querySelector("#header-playback-measures-total"),
-				loop: document.querySelector("#header-playback-loop"),
-				metronome: document.querySelector("#header-playback-metronome"),
-				tempoMultiplier: document.querySelector("#header-playback-tempo-multiplier"),
-				record: document.querySelector("#header-playback-record"),
-				play: document.querySelector("#header-playback-play"),
-				uploadSynth: document.querySelector("#header-playback-upload-synth-input"),
+				uploadSynth: document.querySelector("#header-file-upload-synth-input"),
 			},
 			content: {
 				outer: document.querySelector("#content-outer"),
 				table: document.querySelector("#content"),
 				measuresContainer: document.querySelector("#content-measures"),
+				measuresCurrent: document.querySelector("#content-measures-position-current"),
+				measuresTotal: document.querySelector("#content-measures-position-total"),
+				swing: document.querySelector("#content-measures-swing"),
+				metronome: document.querySelector("#content-measures-metronome"),
+				tempoMultiplier: document.querySelector("#content-measures-tempo-multiplier"),
 				measures: {},
 				measuresSpacer: document.querySelector("#content-measures-spacer"),
 				measuresAdd: document.querySelector("#content-measures-add"),
@@ -307,7 +306,12 @@
 				parts: {},
 				partsAddRow: document.querySelector("#content-parts-add-row"),
 				partsAdd: document.querySelector("#content-parts-add"),
-				partsSpacer: document.querySelector("#content-parts-spacer")
+				partsSpacer: document.querySelector("#content-parts-spacer"),
+			},
+			help: {
+				button: document.querySelector("#help-button"),
+				content: document.querySelector("#help-content"),
+				name: document.querySelector("#help-name")
 			}
 		}
 
@@ -547,8 +551,8 @@
 
 						// self
 							if (composers[i].id == STATE.composerId) {
-								if (ELEMENTS.header.name !== document.activeElement) {
-									ELEMENTS.header.name.value = composers[i].name
+								if (ELEMENTS.help.name !== document.activeElement) {
+									ELEMENTS.help.name.value = composers[i].name
 								}
 								updateStorage()
 							}
@@ -557,11 +561,11 @@
 		}
 
 	/* updateName */
-		ELEMENTS.header.name.addEventListener(TRIGGERS.change, updateName)
+		ELEMENTS.help.name.addEventListener(TRIGGERS.change, updateName)
 		function updateName(event) {
 			try {
 				// validate
-					const name = ELEMENTS.header.name.value.trim()
+					const name = ELEMENTS.help.name.value.trim()
 					if (!name || !name.length) {
 						return
 					}
@@ -696,11 +700,11 @@
 
 /*** header - playback ***/
 	/* toggleSidebar */
-		ELEMENTS.header.sidebarCollapse.addEventListener(TRIGGERS.click, toggleSidebar)
+		ELEMENTS.header.sidebarCollapse.addEventListener(TRIGGERS.change, toggleSidebar)
 		function toggleSidebar(event) {
 			try {
 				// open
-					if (ELEMENTS.content.outer.getAttribute("collapsed")) {
+					if (ELEMENTS.header.sidebarCollapse.checked) {
 						ELEMENTS.content.outer.removeAttribute("collapsed")
 						return
 					}
@@ -715,17 +719,17 @@
 			try {
 				// set swing
 					STATE.music.swing = swing || false
-					ELEMENTS.header.swing.checked = STATE.music.swing
+					ELEMENTS.content.swing.checked = STATE.music.swing
 					STATE.playback.swing = STATE.music.swing
 			} catch (error) {console.log(error)}
 		}
 
 	/* updateSwing */
-		ELEMENTS.header.swing.addEventListener(TRIGGERS.change, updateSwing)
+		ELEMENTS.content.swing.addEventListener(TRIGGERS.change, updateSwing)
 		function updateSwing(event) {
 			try {
 				// get value
-					const swing = ELEMENTS.header.swing.checked || false
+					const swing = ELEMENTS.content.swing.checked || false
 
 				// send to server
 					STATE.socket.send(JSON.stringify({
@@ -738,30 +742,30 @@
 		}
 
 	/* updateCurrentMeasure */
-		ELEMENTS.header.measuresCurrent.addEventListener(TRIGGERS.input, updateCurrentMeasure)
+		ELEMENTS.content.measuresCurrent.addEventListener(TRIGGERS.input, updateCurrentMeasure)
 		function updateCurrentMeasure(event) {
 			try {
 				// no measures
 					const totalMeasures = Object.keys(STATE.music.measureTicks).length
 					if (!totalMeasures) {
-						ELEMENTS.header.measuresCurrent.value = 0
+						ELEMENTS.content.measuresCurrent.value = 0
 						return
 					}
 
 				// get measure
-					const measureNumber = Math.floor(ELEMENTS.header.measuresCurrent.value) || 0
+					const measureNumber = Math.floor(ELEMENTS.content.measuresCurrent.value) || 0
 					if (!measureNumber || measureNumber < 0) {
-						ELEMENTS.header.measuresCurrent.value = 1
+						ELEMENTS.content.measuresCurrent.value = 1
 						return
 					}
 					if (measureNumber > totalMeasures) {
-						ELEMENTS.header.measuresCurrent.value = totalMeasures
+						ELEMENTS.content.measuresCurrent.value = totalMeasures
 						return
 					}
 
 				// set state
 					STATE.playback.currentMeasure = measureNumber
-					ELEMENTS.header.measuresCurrent.value = measureNumber
+					ELEMENTS.content.measuresCurrent.value = measureNumber
 					STATE.playback.currentTickOfMeasure = 0
 
 				// find measure element
@@ -775,7 +779,7 @@
 		function setCurrentMeasure(event) {
 			try {
 				// currentMeasure is active
-					if (document.activeElement == ELEMENTS.header.measuresCurrent) {
+					if (document.activeElement == ELEMENTS.content.measuresCurrent) {
 						return
 					}
 
@@ -796,7 +800,7 @@
 						if (measureRect.x + measureRect.width > CONSTANTS.leftColumnWidth) {
 							STATE.playback.currentMeasure = Number(m)
 							STATE.playback.currentTickOfMeasure = 0
-							ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+							ELEMENTS.content.measuresCurrent.value = STATE.playback.currentMeasure
 							return
 						}
 					}
@@ -813,26 +817,26 @@
 		}
 
 	/* setMetronome */
-		ELEMENTS.header.metronome.addEventListener(TRIGGERS.change, setMetronome)
+		ELEMENTS.content.metronome.addEventListener(TRIGGERS.change, setMetronome)
 		function setMetronome(event) {
 			try {
 				// set state
-					STATE.playback.metronome = Boolean(ELEMENTS.header.metronome.checked)
+					STATE.playback.metronome = Boolean(ELEMENTS.content.metronome.checked)
 			} catch (error) {console.log(error)}
 		}
 
 	/* setTempoMultiplier */
-		ELEMENTS.header.tempoMultiplier.addEventListener(TRIGGERS.change, setTempoMultiplier)
+		ELEMENTS.content.tempoMultiplier.addEventListener(TRIGGERS.change, setTempoMultiplier)
 		function setTempoMultiplier(event) {
 			try {
 				// validate
-					const tempoMultiplier = Number(ELEMENTS.header.tempoMultiplier.value)
-					if (!tempoMultiplier || tempoMultiplier < Number(ELEMENTS.header.tempoMultiplier.min)) {
-						ELEMENTS.header.tempoMultiplier.value = ELEMENTS.header.tempoMultiplier.min
+					const tempoMultiplier = Number(ELEMENTS.content.tempoMultiplier.value)
+					if (!tempoMultiplier || tempoMultiplier < Number(ELEMENTS.content.tempoMultiplier.min)) {
+						ELEMENTS.content.tempoMultiplier.value = ELEMENTS.content.tempoMultiplier.min
 						return
 					}
-					if (tempoMultiplier > Number(ELEMENTS.header.tempoMultiplier.max)) {
-						ELEMENTS.header.tempoMultiplier.value = ELEMENTS.header.tempoMultiplier.max
+					if (tempoMultiplier > Number(ELEMENTS.content.tempoMultiplier.max)) {
+						ELEMENTS.content.tempoMultiplier.value = ELEMENTS.content.tempoMultiplier.max
 						return
 					}
 
@@ -1070,7 +1074,7 @@
 							}
 							if (!STATE.playback.currentMeasure) {
 								STATE.playback.currentMeasure = 1
-								ELEMENTS.header.measuresCurrent.value = 1
+								ELEMENTS.content.measuresCurrent.value = 1
 							}
 							
 							ELEMENTS.content.measures[m].element.style.width = "calc(var(--tick-width) * " + measureTicks[m] + ")";
@@ -1079,10 +1083,10 @@
 
 				// set total measure count
 					const measureCount = Object.keys(STATE.music.measureTicks).length
-					ELEMENTS.header.measuresTotal.value = measureCount
-					ELEMENTS.header.measuresCurrent.max = measureCount
-					if (ELEMENTS.header.measuresCurrent.value > measureCount) {
-						ELEMENTS.header.measuresCurrent.value = measureCount
+					ELEMENTS.content.measuresTotal.value = measureCount
+					ELEMENTS.content.measuresCurrent.max = measureCount
+					if (ELEMENTS.content.measuresCurrent.value > measureCount) {
+						ELEMENTS.content.measuresCurrent.value = measureCount
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1103,9 +1107,11 @@
 							}
 
 						// upsert
-							STATE.music.tempoChanges[m] = tempoChanges[m]
-							ELEMENTS.content.measures[m].tempoInput.value = tempoChanges[m]
-							ELEMENTS.content.measures[m].tempoInput.setAttribute("value-present", true)
+							if (STATE.music.measureTicks[m]) {
+								STATE.music.tempoChanges[m] = tempoChanges[m]
+								ELEMENTS.content.measures[m].tempoInput.value = tempoChanges[m]
+								ELEMENTS.content.measures[m].tempoInput.setAttribute("value-present", true)
+							}
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1613,7 +1619,7 @@
 
 							const partEditText = document.createElement("div")
 								partEditText.className = "part-info-edit-text pseudo-button"
-								partEditText.innerHTML = "&#x270F;&nbsp;edit"
+								partEditText.innerHTML = "&#x2710;&nbsp;edit"
 								partEditText.title = "edit this part"
 							partEditLabel.appendChild(partEditText)
 
@@ -1628,7 +1634,7 @@
 
 					// name
 						const partNameLabel = document.createElement("label")
-							partNameLabel.className = "part-info-label"
+							partNameLabel.className = "part-info-label part-info-label-name"
 						partEditLabel.appendChild(partNameLabel)
 
 							const partNameText = document.createElement("span")
@@ -1648,7 +1654,7 @@
 
 					// instrument
 						const partInstrumentLabel = document.createElement("label")
-							partInstrumentLabel.className = "part-info-label"
+							partInstrumentLabel.className = "part-info-label part-info-label-instrument"
 						partEditLabel.appendChild(partInstrumentLabel)
 
 							const partInstrumentText = document.createElement("span")
@@ -1673,7 +1679,7 @@
 
 					// synth
 						const partSynthLabel = document.createElement("label")
-							partSynthLabel.className = "part-info-label"
+							partSynthLabel.className = "part-info-label part-info-label-synth"
 						partEditLabel.appendChild(partSynthLabel)
 
 							const partSynthText = document.createElement("span")
@@ -1756,6 +1762,26 @@
 								partOrderDown.setAttribute("tabindex", "-1")
 							partOrderLabel.appendChild(partOrderDown)
 
+					// panning
+						const partPanningLabel = document.createElement("label")
+							partPanningLabel.className = "part-info-label part-info-panning-label"
+						infoContainerInner.appendChild(partPanningLabel)
+
+							const partPanningText = document.createElement("span")
+								partPanningText.innerHTML = "&#x21F9;"
+							partPanningLabel.appendChild(partPanningText)
+
+							const partPanning = document.createElement("input")
+								partPanning.className = "part-info-panning"
+								partPanning.type = "range"
+								partPanning.min = "-1"
+								partPanning.max = "1"
+								partPanning.step = "0.1"
+								partPanning.value = "0"
+								partPanning.title = "instrument panning"
+								partPanning.addEventListener(TRIGGERS.input, setPartPanning)
+							partPanningLabel.appendChild(partPanning)
+
 					// volume
 						const partVolumeLabel = document.createElement("label")
 							partVolumeLabel.className = "part-info-label part-info-volume-label"
@@ -1790,6 +1816,7 @@
 						infoContainer: infoContainer,
 						editorText: partEditorText,
 						editInput: partEdit,
+						panningInput: partPanning,
 						volumeInput: partVolume,
 						nameInput: partName,
 						instrumentSelect: partInstrument,
@@ -2092,6 +2119,29 @@
 						partId: partId,
 						direction: direction
 					}))
+			} catch (error) {console.log(error)}
+		}
+
+	/* setPartPanning */
+		function setPartPanning(event) {
+			try {
+				// get part
+					const partId = event.target.closest(".part-row").getAttribute("partid")
+					if (!partId) {
+						showToast({success: false, message: "unable to find part"})
+						return
+					}
+
+				// no audio_j
+					if (!AUDIO_J.audio || !AUDIO_J.instruments[partId]) {
+						return
+					}
+
+				// get volume
+					const panning = Math.min(1, Math.max(-1, Number(event.target.value)))
+
+				// set instrument
+					AUDIO_J.instruments[partId].setParameters({panning: panning})
 			} catch (error) {console.log(error)}
 		}
 
@@ -3341,13 +3391,13 @@
 						// more measures?
 							if (STATE.playback.currentMeasure < lastMeasureNumber) {
 								STATE.playback.currentMeasure++
-								ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+								ELEMENTS.content.measuresCurrent.value = STATE.playback.currentMeasure
 							}
 
 						// end of last measure, but looping?
 							else if (STATE.playback.looping) {
 								STATE.playback.currentMeasure = 1
-								ELEMENTS.header.measuresCurrent.value = STATE.playback.currentMeasure
+								ELEMENTS.content.measuresCurrent.value = STATE.playback.currentMeasure
 							}
 
 						// end

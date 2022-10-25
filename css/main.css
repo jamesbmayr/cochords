@@ -167,7 +167,6 @@
 			outline: none;
 			padding: var(--medium-gap-size);
 			cursor: pointer;
-			font-weight: bold;
 			text-transform: uppercase;
 			line-height: 1;
 			user-select: none !important;
@@ -212,7 +211,6 @@
 		a, a:visited {
 			font-family: var(--font-family);
 			color: var(--light-blue);
-			font-weight: bold;
 			font-size: var(--medium-font-size);
 			text-decoration: none;
 			cursor: pointer;
@@ -295,70 +293,6 @@
 		#toast[success=false] {
 			background-color: var(--medium-red);
 		}
-
-/*** helptext ***/
-	.help-text {
-		display: inline-block;
-		vertical-align: top;
-		box-sizing: content-box;
-		height: calc(var(--small-font-size) + 2 * var(--small-gap-size));
-		width: auto;
-		padding: calc(((var(--medium-font-size) + 2 * var(--medium-gap-size)) - var(--small-font-size) - 2 * var(--small-gap-size)) / 2) 0 var(--small-gap-size) var(--medium-gap-size);
-	}
-
-	.help-text[open] {
-		z-index: 1002;
-	}
-
-	.help-text-button {
-		background: var(--medium-gray);
-		font-size: var(--small-font-size);
-		font-family: var(--font-0);
-		color: var(--dark-gray);
-		height: calc(var(--small-font-size) + 2 * var(--small-gap-size));
-		width: calc(var(--small-font-size) + 2 * var(--small-gap-size));
-		padding: var(--small-gap-size);
-		display: block;
-		font-weight: bold;
-		outline: none !important;
-		box-shadow: none !important;
-	}
-
-	details summary.help-text-button:hover, details summary.help-text-button:focus, details summary.help-text-button:focus-within {
-		box-shadow: none !important;
-	}
-
-	.help-text[open] .help-text-button {
-		color: var(--dark-gray);
-		border-radius: var(--border-radius) 0 0 var(--border-radius);
-	}
-
-	.help-text-description {
-		position: relative;
-		top: calc(-1 * (var(--small-font-size) + 2 * var(--small-gap-size)));
-		left: calc(var(--small-font-size) + 2 * var(--small-gap-size));
-		padding: var(--small-gap-size) var(--medium-gap-size) var(--small-gap-size) var(--small-gap-size);
-		display: inline;
-		min-height: var(--small-font-size);
-		width: auto;
-		font-size: var(--small-font-size);
-		font-weight: normal;
-		font-family: var(--font-0);
-		color: var(--dark-gray);
-		line-height: 1;
-		vertical-align: bottom;
-		user-select: none;
-		-webkit-user-select: none;
-		-moz-user-select: none;
-		-ms-user-select: none;
-		-o-user-select: none;
-		pointer-events: none;
-		text-transform: none;
-		background: var(--medium-gray);
-		border-radius: 0 var(--border-radius) var(--border-radius) 0;
-		display: inline-block;
-		z-index: 1002;
-	}
 
 /*** status ***/
 	/* visibility */
