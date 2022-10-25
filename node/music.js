@@ -145,9 +145,14 @@
 										part.measures[m].notes = {}
 									}
 									else {
-										for (let p in part.measures[m].notes) {
-											if (p < CONSTANTS.lowestPitch || p > CONSTANTS.highestPitch) {
-												delete part.measures[m].notes[p]
+										for (let t in part.measures[m].notes) {
+											if (Number(t) < 0 || Number(t) >= music.measureTicks[m]) {
+												delete part.measures[m].notes[t]
+											}
+											for (let p in part.measures[m].notes[t]) {
+												if (p < CONSTANTS.lowestPitch || p > CONSTANTS.highestPitch) {
+													delete part.measures[m].notes[t][p]
+												}
 											}
 										}
 									}
