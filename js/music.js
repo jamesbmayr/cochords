@@ -32,6 +32,7 @@
 			pitchHeight: 3 * 5, // var(--pitch-height) * var(--pitch-height-modifier)
 			minimumDuration: 2, // ms
 			ticksPerBeat: 24, // tick
+			quantizeTicks: 6, // tick
 			pitchesPerOctave: 12, // midi
 			lowestPitch: 24, // midi
 			highestPitch: 96, // midi
@@ -59,6 +60,8 @@
 				enter: 13,
 				escape: 27,
 				meta: 91,
+				o: 79,
+				s: 83,
 				shift: 16,
 				space: 32,
 				tab: 9,
@@ -192,6 +195,8 @@
 				enter: false,
 				escape: false,
 				meta: false,
+				o: false,
+				s: false,
 				shift: false,
 				space: false,
 				tab: false,
@@ -233,8 +238,18 @@
 						}
 					}
 
+				// hotkeys
+					if ((event.which == CONSTANTS.keyboard.s) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						event.preventDefault()
+						downloadMusicXML()
+					}
+					else if ((event.which == CONSTANTS.keyboard.o) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+						event.preventDefault()
+						ELEMENTS.header.uploadSynth.click()
+					}
+
 				// note editing hotkeys
-					if      (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.v) && (STATE.keyboard.meta || STATE.keyboard.control)) {
+					else if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.v) && (STATE.keyboard.meta || STATE.keyboard.control)) {
 						addNotesFromClipboard(STATE.selected.notesFromClipboard)
 					}
 					else if (document.activeElement == ELEMENTS.body && (event.which == CONSTANTS.keyboard.a) && (STATE.keyboard.meta || STATE.keyboard.control)) {
@@ -308,8 +323,10 @@
 				partsAddRow: document.querySelector("#content-parts-add-row"),
 				partsAdd: document.querySelector("#content-parts-add"),
 				partsSpacer: document.querySelector("#content-parts-spacer"),
+				delete: document.querySelector("#content-delete-button")
 			},
 			help: {
+				noteHelper: document.querySelector("#note-helper"),
 				button: document.querySelector("#help-button"),
 				content: document.querySelector("#help-content"),
 				name: document.querySelector("#help-name")
@@ -423,7 +440,18 @@
 				STATE.socket = new WebSocket(url)
 				STATE.socket.keepPinging = false
 				STATE.socket.onopen = function() {
-					STATE.socket.send(null)
+					if (STATE.selected.partId) {
+						STATE.socket.send(JSON.stringify({
+							action: "updatePartEditor",
+							composerId: STATE.composerId,
+							musicId: STATE.music.id,
+							partId: partId,
+							editorId: STATE.composerId
+						}))
+					}
+					else {
+						STATE.socket.send(null)
+					}
 				}
 				STATE.socket.onerror = function(error) {
 					showToast({success: false, message: error})
@@ -475,8 +503,15 @@
 						}
 
 					// toast
-						if (data.message) {
+						else if (data.message) {
 							showToast(data)
+						}
+
+					// deleted
+						if (data.deleted) {
+							setTimeout(function() {
+								window.location = "../../../../"
+							}, 5000)
 						}
 
 				// data
@@ -699,6 +734,19 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* deleteMusic */
+		ELEMENTS.content.delete.addEventListener(TRIGGERS.click, deleteMusic)
+		function deleteMusic(event) {
+			try {
+				// send to server
+					STATE.socket.send(JSON.stringify({
+						action: "deleteMusic",
+						composerId: STATE.composerId,
+						musicId: STATE.music.id,
+					}))
+			} catch (error) {console.log(error)}
+		}
+
 /*** header - playback ***/
 	/* toggleSidebar */
 		ELEMENTS.header.sidebarCollapse.addEventListener(TRIGGERS.change, toggleSidebar)
@@ -897,6 +945,7 @@
 						// stop playing
 							clearInterval(STATE.playback.loop)
 							STATE.playback.loop = null
+							STATE.playback.currentTickOfMeasure = 0
 							STATE.playback.partDynamics = {}
 
 							ELEMENTS.content.outer.removeAttribute("playing")
@@ -1416,7 +1465,7 @@
 								AUDIO_J.instruments[partId].setParameters({power: 0})
 							}
 
-							const parameters = AUDIO_J.getInstrument(partJSON.synth)
+							const parameters = AUDIO_J.getInstrument(partJSON.synth) || STATE.music.synths[partJSON.synth]
 							if (parameters) {
 								AUDIO_J.instruments[partId] = AUDIO_J.buildInstrument(parameters)
 
@@ -1523,7 +1572,7 @@
 
 				// previously selected but not now --> put notes back
 					if (wasSelected && (partId !== STATE.selected.partId)) {
-						// selected notes --> unselect & cancel
+						// selected notes --> submit & unselect
 							revertNotes()
 							setCursorState()
 
@@ -1577,7 +1626,7 @@
 					measureObject.notesContainer.innerHTML = ""
 
 					for (let n in measureState.notes) {
-						buildMeasureNote(partId, measureObject.notesContainer, measureNumber, n, measureState.notes[n])
+						buildMeasureNote(partId, measureNumber, n, measureState.notes[n])
 					}
 			} catch (error) {console.log(error)}
 		}
@@ -1623,15 +1672,6 @@
 								partEditText.innerHTML = "&#x2710;&nbsp;edit"
 								partEditText.title = "edit this part"
 							partEditLabel.appendChild(partEditText)
-
-							const partDelete = document.createElement("button")
-								partDelete.className = "part-info-edit-delete"
-								partDelete.innerHTML = "&times;&nbsp;delete"
-								partDelete.title = "permanently delete part from score"
-								partDelete.addEventListener(TRIGGERS.click, deletePart)
-								partDelete.setAttribute("quasi-tabbable", true)
-								partDelete.setAttribute("tabindex", "-1")
-							partEditLabel.appendChild(partDelete)
 
 					// name
 						const partNameLabel = document.createElement("label")
@@ -1733,6 +1773,27 @@
 										option.value = customSynths[i]
 									customGroup.appendChild(option)
 								}
+
+						// delete
+							const partDeleteOuter = document.createElement("details")
+								partDeleteOuter.className = "part-info-edit-delete-outer"
+								partDeleteOuter.setAttribute("quasi-tabbable", true)
+								partDeleteOuter.setAttribute("tabindex", "-1")
+							partEditLabel.appendChild(partDeleteOuter)
+
+							const partDeleteSummary = document.createElement("summary")
+								partDeleteSummary.className = "part-info-edit-delete-summary"
+								partDeleteSummary.innerHTML = "&times;"
+							partDeleteOuter.appendChild(partDeleteSummary)
+
+							const partDelete = document.createElement("button")
+								partDelete.className = "part-info-edit-delete"
+								partDelete.innerHTML = "delete part"
+								partDelete.title = "permanently delete part from score"
+								partDelete.addEventListener(TRIGGERS.click, deletePart)
+								partDelete.setAttribute("quasi-tabbable", true)
+								partDelete.setAttribute("tabindex", "-1")
+							partDeleteOuter.appendChild(partDelete)
 
 					// order
 						const partOrderLabel = document.createElement("div")
@@ -1885,8 +1946,14 @@
 		}
 
 	/* buildMeasureNote */
-		function buildMeasureNote(partId, notesContainer, measureNumber, tickOfMeasure, pitches) {
+		function buildMeasureNote(partId, measureNumber, tickOfMeasure, pitches) {
 			try {
+				// notes container
+					if (!ELEMENTS.content.parts[partId].measures[measureNumber]) {
+						return
+					}
+					const notesContainer = ELEMENTS.content.parts[partId].measures[measureNumber].notesContainer
+
 				// loop through notes
 					for (let p in pitches) {
 						// note info
@@ -1956,13 +2023,17 @@
 
 				// edited by you --> clear
 					if (STATE.music.parts[partId].editorId == STATE.composerId) {
-						STATE.socket.send(JSON.stringify({
-							action: "updatePartEditor",
-							composerId: STATE.composerId,
-							musicId: STATE.music.id,
-							partId: partId,
-							editorId: null
-						}))
+						updateNotes()
+
+						setTimeout(function() {
+							STATE.socket.send(JSON.stringify({
+								action: "updatePartEditor",
+								composerId: STATE.composerId,
+								musicId: STATE.music.id,
+								partId: partId,
+								editorId: null
+							}))
+						}, 0)
 						return
 					}
 
@@ -2270,6 +2341,15 @@
 						return
 					}
 
+				// clean notes
+					const lastMeasureNumber = Object.keys(STATE.music.measureTicks).length
+					for (let n = 0; n < notes.length; n++) {
+						if (notes[n].measureNumber <= 0 || notes[n].measureNumber > lastMeasureNumber) {
+							notes.splice(n, 1)
+							n--
+						}
+					}
+
 				// no notes
 					if (!notes || !notes.length) {
 						return
@@ -2282,6 +2362,13 @@
 							AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
 							AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
 						}
+					}
+
+				// optimistically create
+					for (let n in notes) {
+						const pitches = {}
+							pitches[notes[n].pitch] = notes[n].duration
+						buildMeasureNote(STATE.selected.partId, notes[n].measureNumber, notes[n].tick, pitches)
 					}
 
 				// send to server
@@ -2328,9 +2415,9 @@
 					for (let n in STATE.selected.notesFromClipboard) {
 						if (STATE.selected.notesFromClipboard[n].measureNumber < offsets.measureNumber) {
 							offsets.measureNumber = STATE.selected.notesFromClipboard[n].measureNumber
-						}
-						if (STATE.selected.notesFromClipboard[n].tick < offsets.tick) {
-							offsets.tick = STATE.selected.notesFromClipboard[n].tick
+							if (STATE.selected.notesFromClipboard[n].tick < offsets.tick) {
+								offsets.tick = STATE.selected.notesFromClipboard[n].tick
+							}
 						}
 						if (STATE.selected.notesFromClipboard[n].pitch > offsets.pitch) {
 							offsets.pitch = STATE.selected.notesFromClipboard[n].pitch
@@ -2444,7 +2531,8 @@
 						pitchesChange: options.pitchesChange || 0,
 						forceEnd: options.forceEnd || false,
 						forceStart: options.forceStart || false,
-						relativeToInterim: options.relativeToInterim
+						relativeToInterim: options.relativeToInterim || false,
+						quantize: options.quantize || false
 					}
 
 				// stop waiting for cursor lift
@@ -2464,7 +2552,11 @@
 
 						// end
 							if (!options.forceStart && (notes[n].end || options.forceEnd)) {
-								const newDuration = Math.max(CONSTANTS.minimumDuration, (options.relativeToInterim ? interimDuration : previousDuration) + options.ticksChange)
+								const offsetFromPreviousSubbeat = options.quantize ? ((options.relativeToInterim ? interimDuration : previousDuration) % CONSTANTS.quantizeTicks) : 0
+								const offsetFromNextSubbeat = options.quantize ? ((options.relativeToInterim ? interimDuration : previousDuration) % CONSTANTS.quantizeTicks - CONSTANTS.quantizeTicks) : 0
+								const offsetFromSubbeat = options.quantize ? ((offsetFromPreviousSubbeat <= Math.abs(offsetFromNextSubbeat)) ? offsetFromPreviousSubbeat * -1 : offsetFromNextSubbeat * -1) : 0
+
+								const newDuration = Math.max(CONSTANTS.minimumDuration, (options.relativeToInterim ? interimDuration : previousDuration) + (options.quantize ? offsetFromSubbeat : options.ticksChange))
 								thisNoteElement.setAttribute("duration", newDuration)
 								thisNoteElement.style.width = "calc(var(--tick-width) * " + newDuration + ")"
 
@@ -2475,7 +2567,11 @@
 							}
 
 						// info
-							const newTick = (options.relativeToInterim ? interimTick : previousTick) + options.ticksChange
+							const offsetFromPreviousSubbeat = options.quantize ? ((options.relativeToInterim ? interimTick : previousTick) % CONSTANTS.quantizeTicks) : 0
+							const offsetFromNextSubbeat = options.quantize ? ((options.relativeToInterim ? interimTick : previousTick) % CONSTANTS.quantizeTicks - CONSTANTS.quantizeTicks) : 0
+							const offsetFromSubbeat = options.quantize ? ((offsetFromPreviousSubbeat <= Math.abs(offsetFromNextSubbeat)) ? offsetFromPreviousSubbeat * -1 : offsetFromNextSubbeat * -1) : 0
+
+							const newTick = (options.relativeToInterim ? interimTick : previousTick) + (options.quantize ? offsetFromSubbeat : options.ticksChange)
 							const newPitch = Math.max(CONSTANTS.lowestPitch, Math.min(CONSTANTS.highestPitch, (options.relativeToInterim ? interimPitch : previousPitch) + options.pitchesChange))
 							const noteInfo = MUSICXML_J.constants.notes[newPitch]
 							const noteName = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
@@ -2559,9 +2655,11 @@
 
 				// update to do
 					const deletedNotes = []
+					const deletedNoteElements = []
 				
 				// loop through
 					for (let n in notes) {
+						deletedNoteElements.push(notes[n].element)
 						const deletedNote = {
 							measureNumber: notes[n].measureNumber,
 							tick: notes[n].tick,
@@ -2576,6 +2674,13 @@
 						return
 					}
 
+				// optimistically delete
+					setTimeout(function() {
+						for (let n in deletedNoteElements) {
+							deletedNoteElements[n].remove()
+						}
+					}, 0)
+
 				// send to server
 					rememberNoteAction("deletePartMeasureNotes", deletedNotes)
 					STATE.socket.send(JSON.stringify({
@@ -2586,8 +2691,7 @@
 						notes: deletedNotes
 					}))
 
-				// remove from selection
-					unselectNotes(notes)
+				// revert everything remaining
 					revertNotes()
 			} catch (error) {console.log(error)}
 		}
@@ -2902,6 +3006,12 @@
 			try {
 				// prevent default
 					event.preventDefault()
+					event.stopPropagation()
+
+				// desktop
+					if (!ISMOBILE) {
+						return
+					}
 				
 				// pass on to downMouseOnNote
 					event.mobileContextMenu = true
@@ -2912,6 +3022,9 @@
 	/* moveMouse */
 		function moveMouse(event) {
 			try {
+				// note helper
+					updateNoteHelper(event)
+
 				// no part selected
 					if (!STATE.selected.partId) {
 						return
@@ -3156,6 +3269,48 @@
 			} catch (error) {console.log(error)}
 		}
 
+	/* updateNoteHelper */
+		function updateNoteHelper(event) {
+			try {
+				// no event?
+					if (!event || !STATE.selected.partId || STATE.playback.playing) {
+						ELEMENTS.help.noteHelper.innerText = ""
+						return
+					}
+
+				// cursor
+					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
+					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
+
+				// move
+					ELEMENTS.help.noteHelper.style.left = cursorX + "px"
+					ELEMENTS.help.noteHelper.style.top  = cursorY + "px"
+
+				// get containers
+					const containerRect = ELEMENTS.content.parts[STATE.selected.partId].measuresContainer.getBoundingClientRect()
+					const infoRect = ELEMENTS.content.parts[STATE.selected.partId].infoContainer.getBoundingClientRect()
+
+				// out of bounds
+					if (cursorX < (infoRect.x + infoRect.width) || cursorY < containerRect.y || cursorY > (containerRect.y + containerRect.height)) {
+						ELEMENTS.help.noteHelper.innerText = ""
+						return
+					}
+
+				// get note
+					const midiNote = CONSTANTS.highestPitch - Math.floor((cursorY - containerRect.y) / CONSTANTS.pitchHeight)
+
+				// illegal note
+					if (midiNote < CONSTANTS.lowestPitch || midiNote > CONSTANTS.highestPitch) {
+						ELEMENTS.help.noteHelper.innerText = ""
+						return
+					}
+
+				// set text
+					const noteInfo = MUSICXML_J.constants.notes[midiNote]
+					ELEMENTS.help.noteHelper.innerText = noteInfo[1] + (noteInfo[2] == -1 ? "♭" : noteInfo[2] == 1 ? "♯" : "") + noteInfo[3]
+			} catch (error) {console.log(error)}
+		}
+
 /*** notes - keyboard ***/
 	/* pressKey */
 		function pressKeyWithinMeasure(key) {
@@ -3242,7 +3397,8 @@
 						moveNotes(null, {
 							ticksChange: STATE.keyboard.shift ? -CONSTANTS.ticksPerBeat : -1,
 							forceStart: STATE.keyboard.altoption ? false : true,
-							forceEnd: STATE.keyboard.altoption ? true : false
+							forceEnd: STATE.keyboard.altoption ? true : false,
+							quantize: (STATE.keyboard.meta || STATE.keyboard.control)
 						})
 						event.preventDefault()
 						return
@@ -3251,7 +3407,8 @@
 						moveNotes(null, {
 							ticksChange: STATE.keyboard.shift ? CONSTANTS.ticksPerBeat : 1,
 							forceStart: STATE.keyboard.altoption ? false : true,
-							forceEnd: STATE.keyboard.altoption ? true : false
+							forceEnd: STATE.keyboard.altoption ? true : false,
+							quantize: (STATE.keyboard.meta || STATE.keyboard.control)
 						})
 						event.preventDefault()
 						return
@@ -3396,7 +3553,7 @@
 
 				// existing parts
 					for (let p in STATE.music.parts) {
-						const parameters = AUDIO_J.getInstrument(STATE.music.parts[p].synth)
+						const parameters = AUDIO_J.getInstrument(STATE.music.parts[p].synth) || STATE.music.synths[STATE.music.parts[p].synth]
 						if (parameters) {
 							AUDIO_J.instruments[p] = AUDIO_J.buildInstrument(parameters)
 

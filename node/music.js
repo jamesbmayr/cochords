@@ -402,16 +402,13 @@
 			}
 		}
 
-/*** deletes ***/
-	/* deleteOne */
-		module.exports.deleteOne = deleteOne
-		function deleteOne(REQUEST, callback) {
+/*** actions ***/
+	/* deleteMusic */
+		module.exports.actions.deleteMusic = deleteMusic
+		function deleteMusic(REQUEST, music, composer, callback) {
 			try {
-				// music id
-					const musicId = REQUEST.path[REQUEST.path.length - 1]
-					if (!musicId || musicId.length !== CONSTANTS.musicIdLength) {
-						return
-					}
+				// get name
+					const name = composer.name || "unknown composer"
 
 				// get session ids
 					const sessionIds = []
@@ -438,7 +435,7 @@
 
 						// update and callback (redirect)
 							SESSION.updateOne(pseudoRequest, null, function() {
-								callback({success: true, musicId: music.id, message: "the music has been deleted", recipients: [thatSessionId], location: "../../../../"})
+								callback({success: false, musicId: music.id, message: name + " deleted the music", deleted: true, recipients: [thatSessionId]})
 							})
 					}
 
@@ -446,17 +443,17 @@
 					const query = CORE.getSchema("query")
 						query.collection = "music"
 						query.command = "delete"
-						query.filters = {id: musicId}
+						query.filters = {id: music.id}
 
 				// find
 					CORE.accessDatabase(query, callback)
 			}
 			catch (error) {
 				CORE.logError(error)
+				callback({musicId: REQUEST.path[REQUEST.path.length - 1], success: false, message: "unable to " + arguments.callee.name, recipients: [REQUEST.session.id]})
 			}
 		}
 
-/*** actions ***/
 	/* disconnectComposer */
 		module.exports.actions.disconnectComposer = disconnectComposer
 		function disconnectComposer(REQUEST, music, composer, callback) {
@@ -527,7 +524,7 @@
 				// new synth
 					const synth = CORE.getSchema("synth")
 						synth.id = REQUEST.post.synth.id || synth.id
-						synth.name = (REQUEST.post.synth.name || synth.name).replace(/^[a-zA-Z0-9\s]/g, "")
+						synth.name = (REQUEST.post.synth.name || synth.name).replace(/[^a-zA-Z0-9\s\-\_]*/g, "")
 						synth.polysynth = REQUEST.post.synth.polysynth || synth.polysynth
 						synth.noise = REQUEST.post.synth.noise || synth.noise
 						synth.imag = REQUEST.post.synth.imag || synth.imag
@@ -564,7 +561,7 @@
 
 						// inform other composers
 							for (let i in music.composers) {
-								callback({musicId: music.id, success: true, music: updatedData, recipients: [music.composers[i].sessionId]})
+								callback({musicId: music.id, success: true, message: composer.name + " added a synth: " + synth.name, music: updatedData, recipients: [music.composers[i].sessionId]})
 							}
 					})
 			}
@@ -1785,9 +1782,11 @@
 
 				// validate & adjust notes
 					const newNotes = REQUEST.post.notes || []
+					const measuresToRevert = {}
 					for (let n = 0; n < newNotes.length; n++) {
 						// impossible note
 							if (!newNotes[n] || !newNotes[n].pitch || (newNotes[n].pitch < CONSTANTS.lowestPitch || newNotes[n].pitch > CONSTANTS.highestPitch) || !newNotes[n].duration) {
+								measuresToRevert[newNotes[n].measureNumber] = true
 								newNotes.splice(n, 1)
 								n--
 								continue
@@ -1796,6 +1795,7 @@
 						// find new measure
 							const adjustedNote = getTimeAdjustedNote(music.measureTicks, newNotes[n])
 							if (!adjustedNote) {
+								measuresToRevert[newNotes[n].measureNumber] = true
 								newNotes.splice(n, 1)
 								n--
 								continue
@@ -1805,7 +1805,13 @@
 
 				// no valid notes
 					if (!newNotes.length) {
-						callback({musicId: musicId, success: false, message: "no valid notes to add", recipients: [REQUEST.session.id]})
+						const previousData = {parts: {}}
+							previousData.parts[partId] = {measures: {}}
+						for (let m in measuresToRevert) {
+							previousData.parts[partId].measures[m] = {notes: part.measures[m] ? part.measures[m].notes : {}}
+						} 
+							
+						callback({musicId: musicId, success: false, message: "no valid notes to add", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -2011,9 +2017,11 @@
 
 				// validate & adjust notes
 					const oldNotes = REQUEST.post.notes || []
+					const measuresToRevert = {}
 					for (let n = 0; n < oldNotes.length; n++) {
 						// impossible note
 							if (!oldNotes[n] || !oldNotes[n].pitch || (oldNotes[n].pitch < CONSTANTS.lowestPitch || oldNotes[n].pitch > CONSTANTS.highestPitch) || !oldNotes[n].duration) {
+								measuresToRevert[oldNotes[n].measureNumber] = true
 								oldNotes.splice(n, 1)
 								n--
 								continue
@@ -2022,6 +2030,7 @@
 						// find new measure
 							const adjustedNote = getTimeAdjustedNote(music.measureTicks, oldNotes[n])
 							if (!adjustedNote) {
+								measuresToRevert[oldNotes[n].measureNumber] = true
 								oldNotes.splice(n, 1)
 								n--
 								continue
@@ -2031,7 +2040,12 @@
 
 				// no valid notes
 					if (!oldNotes.length) {
-						callback({musicId: musicId, success: false, message: "no valid notes to delete", recipients: [REQUEST.session.id]})
+						const previousData = {parts: {}}
+							previousData.parts[partId] = {measures: {}}
+						for (let m in measuresToRevert) {
+							previousData.parts[partId].measures[m] = {notes: part.measures[m].notes}
+						}
+						callback({musicId: musicId, success: false, message: "no valid notes to delete", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -2116,6 +2130,11 @@
 						if (note.measureNumber > lastMeasureNumber) {
 							return null
 						}
+					}
+
+				// out of bounds
+					if (note.measureNumber <= 0 || note.measureNumber > lastMeasureNumber) {
+						return null
 					}
 
 				// return

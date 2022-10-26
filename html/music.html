@@ -92,11 +92,17 @@
 						</th>
 					</tr>
 					<tr id="content-parts-spacer">
-						<th></th>
+						<th>
+							<details id="content-delete-outer">
+								<summary id="content-delete-summary">&times;</summary>
+								<button id="content-delete-button" title="permanently delete entire score">delete all</button>
+							</details>
+						</th>
 					</tr>
 				</tbody>
 			</table>
 		</div>
+		<div id="note-helper"></div>
 		<details id="help">
 			<summary id="help-button">?</summary>
 			<div id="help-content">
@@ -116,7 +122,7 @@
 					<li class="help-desktop">&uarr;SYNTH: upload custom <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a></li>
 					<div>OPTIONS</div>
 					<li>BARS #/#: current measure position / total</li>
-					<li>&#x266B;SWING: syncopation / shuffle (♪♪ &rarr; 3[♪♪]♪)</li>
+					<li>&#x266B;&nbsp;SWING: syncopation / shuffle (♪♪ &rarr; 3[♪♪]♪)</li>
 					<li>&#9750;: metronome tick sound on ♩</li>
 					<li>BPM &times;: tempo multiplier</li>
 					<div>MEASURES</div>
@@ -125,7 +131,7 @@
 					<li>BPM: beats per minute, where ♩ is 1 beat</li>
 					<li>&#x2A01;: add measure to the end</li>
 					<div>PARTS</div>
-					<li>&#x2710;EDIT: take over editing for that part</li>
+					<li>&#x2710;&nbsp;EDIT: take over editing for that part</li>
 					<li>NAME: custom part name</li>
 					<li>MIDI: instrument name in MIDI standard</li>
 					<li>SYNTH: <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a> sound</li>
@@ -153,15 +159,18 @@
 					<div>NOTES - KEYBOARD</div>
 					<li>tab: move through notes</li>
 					<li>space: select/unselect highlighted note</li>
+					<li>enter: submit changes</li>
+					<li>backspace/delete: delete selected notes</li>
+					<li>escape: revert selection to original pitches & beats</li>
+					<div>NOTES - ARROWS</div>
 					<li>&uarr;&darr;: change pitch by 1 semitone</li>
 					<li>shift &uarr;&darr;: change pitch by 1 octave</li>
 					<li>&larr;&rarr;: change start beat by 1 tick</li>
 					<li>shift &larr;&rarr;: change by full beat</li>
+					<li>cmd/ctrl &larr;&rarr;: quantize start beat to &#x266C;</li>
 					<li>option/alt &larr;&rarr;: change duration by 1 tick</li>
 					<li>shift option/alt &larr;&rarr;: change duration by full beat</li>
-					<li>enter: submit changes</li>
-					<li>backspace/delete: delete selected notes</li>
-					<li>escape: revert selection to original pitches & beats</li>
+					<li>cmd/ctrl option/alt &larr;&rarr;: quantize duration to &#x266C;</li>
 					<div>NOTES - HOTKEYS</div>
 					<li>cmd/ctrl-A: select all notes in part</li>
 					<li>cmd/ctrl-C: copy selection</li>
@@ -169,6 +178,9 @@
 					<li>cmd/ctrl-X: cut selection</li>
 					<li>cmd/ctrl-Z: undo add/update/delete notes</li>
 					<li>shift cmd/ctrl-Z: redo add/update/delete notes</li>
+					<div>OTHER HOTKEYS</div>
+					<li>cmd/ctrl-S: download score as musicXML</li>
+					<li>cmd/ctrl-O: upload <a href="https://jamesmayr.com/toneMaker" target="_blank">toneMaker synth</a> JSON</li>
 				</div>
 				<div class="help-mobile">
 					<div>NOTES - MOBILE</div>

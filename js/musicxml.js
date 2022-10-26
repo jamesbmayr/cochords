@@ -730,49 +730,49 @@
 		function getDurationType(ticks) {
 			try {
 				if (ticks >= 96) {
-					return [`<duration>96</duration><type>whole</type>`, "", ticks - 96]
+					return [`<duration>96</duration>`, `<type>whole</type>`, "", ticks - 96]
 				}
 				if (ticks >= 72) {
-					return [`<duration>72</duration><type>half</type><dot/>`, "", ticks - 72]
+					return [`<duration>72</duration>`, `<type>half</type><dot/>`, "", ticks - 72]
 				}
 				if (ticks >= 48) {
-					return [`<duration>48</duration><type>half</type>`, "", ticks - 48]
+					return [`<duration>48</duration>`, `<type>half</type>`, "", ticks - 48]
 				}
 				if (ticks >= 36) {
-					return [`<duration>36</duration><type>quarter</type><dot/>`, "", ticks - 36]
+					return [`<duration>36</duration>`, `<type>quarter</type><dot/>`, "", ticks - 36]
 				}
 				if (ticks >= 32) {
-					return [`<duration>32</duration><type>half</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 32]
+					return [`<duration>32</duration>`, `<type>half</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 32]
 				}
 				if (ticks >= 24) {
-					return [`<duration>24</duration><type>quarter</type>`, "", ticks - 24]
+					return [`<duration>24</duration>`, `<type>quarter</type>`, "", ticks - 24]
 				}
 				if (ticks >= 18) {
-					return [`<duration>18</duration><type>eighth</type><dot/>`, "", ticks - 18]
+					return [`<duration>18</duration>`, `<type>eighth</type><dot/>`, "", ticks - 18]
 				}
 				if (ticks >= 16) {
-					return [`<duration>16</duration><type>quarter</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 16]
+					return [`<duration>16</duration>`, `<type>quarter</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 16]
 				}
 				if (ticks >= 12) {
-					return [`<duration>12</duration><type>eighth</type>`, "", ticks - 12]
+					return [`<duration>12</duration>`, `<type>eighth</type>`, "", ticks - 12]
 				}
 				if (ticks >= 9) {
-					return [`<duration>9</duration><type>16th</type><dot/>`, "", ticks - 9]
+					return [`<duration>9</duration>`, `<type>16th</type><dot/>`, "", ticks - 9]
 				}
 				if (ticks >= 8) {
-					return [`<duration>8</duration><type>eighth</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 8]
+					return [`<duration>8</duration>`, `<type>eighth</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 8]
 				}
 				if (ticks >= 6) {
-					return [`<duration>6</duration><type>16th</type>`, "", ticks - 6]
+					return [`<duration>6</duration>`, `<type>16th</type>`, "", ticks - 6]
 				}
 				if (ticks >= 4) {
-					return [`<duration>4</duration><type>16th</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 4]
+					return [`<duration>4</duration>`, `<type>16th</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 4]
 				}
 				if (ticks >= 3) {
-					return [`<duration>3</duration><type>32nd</type>`, "", ticks - 3]
+					return [`<duration>3</duration>`, `<type>32nd</type>`, "", ticks - 3]
 				}
 				if (ticks >= 2) {
-					return [`<duration>2</duration><type>32nd</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 2]
+					return [`<duration>2</duration>`, `<type>32nd</type>`, `<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>`, ticks - 2]
 				}
 				return ['', 0]
 			} catch (error) {console.log(error)}
@@ -1304,8 +1304,12 @@
 					const durationsXML = []
 					while (ticks) {
 						const output = getDurationType(ticks)
-							durationsXML.push([output[0], output[1]])
-							ticks = output[2]
+							durationsXML.push({
+								ticks: output[0],
+								type: output[1],
+								tuplet: output[2]
+							})
+							ticks = output[3]
 					}
 
 				// rest
@@ -1314,7 +1318,7 @@
 							let restXML = ""
 						// loop through durations
 							for (let d in durationsXML) {
-								restXML += `      <note>\n        <rest/>\n        ` + durationsXML[d][0] + durationsXML[d][1] + `\n      </note>\n`
+								restXML += `      <note>\n        <rest/>\n        ` + durationsXML[d].ticks + durationsXML[d].type + durationsXML[d].tuplet + `\n      </note>\n`
 							}
 						return [restXML, {}]
 					}
@@ -1347,13 +1351,15 @@
 										noteXML += `      <note>\n` + 
 											(isChord ? `        <chord/>\n` : "") +
 											(pitchXML ? (`        ` + pitchXML + `\n`) : "") +
-											(`        ` + durationsXML[d][0] + `\n`) + 
+											(`        ` + durationsXML[d].ticks + `\n`) + 
+											(oldHolds[p] || d ? `        <tie type="stop"/>` : "") + 
+											(d < durationsXML.length - 1 || newHolds[p] ? `        <tie type="start"/>` : "") + 
+											(`        ` + durationsXML[d].type + `\n`) + 
 											(accidentalXML ? (`        ` + accidentalXML + `\n`) : "") + 
-											(durationsXML[d][1] ? (`        ` + durationsXML[d][1] + `\n`) : "") + 
+											(durationsXML[d].tuplet ? (`        ` + durationsXML[d].tuplet + `\n`) : "") + 
 											(`        <notations>` + 
 												(oldHolds[p] || d ? `<tied type="stop"/>` : "") + 
 												(d < durationsXML.length - 1 || newHolds[p] ? `<tied type="start"/>` : "") + 
-												// (durationsXML[d][1] ? `<tuplet number="1" type="start"/>` : "") +
 											`</notations>\n`) +
 											`      </note>\n`
 
