@@ -1176,9 +1176,7 @@
 							// directions
 								// swing
 									if (m == "1") {
-										measureXML += musicJSON.swing ?
-										`      <sound><swing><first>2</first><second>1</second><swing-style>Standard</swing-style></swing></sound>\n` : 
-										`      <sound><swing><straight/></swing></sound>\n`
+										measureXML += musicJSON.swing ? `      <sound><swing><first>2</first><second>1</second><swing-style>Standard</swing-style></swing></sound>\n` : ""
 									}
 
 								// tempo

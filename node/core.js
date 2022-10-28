@@ -183,17 +183,17 @@
 						case "css":
 						case "csv":
 						case "html":
-							return "text/" + extension
+							return "text/" + extension + "; charset=utf-8"
 						break
 						case "js":
-							return "text/javascript"
+							return "text/javascript; charset=utf-8"
 						break
 						case "md":
-							return "text/html"
+							return "text/html; charset=utf-8"
 						break
 						case "txt":
 						default:
-							return "text/plain"
+							return "text/plain; charset=utf-8"
 						break
 				}
 			}

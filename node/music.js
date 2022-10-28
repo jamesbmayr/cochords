@@ -336,7 +336,7 @@
 								// updated music
 									const music = results.documents[0]
 									for (let i in music.composers) {
-										callback({musicId: music.id, success: true, message: name + " joined", composerId: i, music: music, recipients: [music.composers[i].sessionId]})
+										callback({musicId: music.id, success: true, message: name + " connected", composerId: i, music: music, recipients: [music.composers[i].sessionId]})
 									}
 							})
 					})

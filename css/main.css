@@ -47,11 +47,11 @@
 			font-size: var(--large-font-size);
 			font-family: var(--font-0);
 			margin: var(--medium-gap-size) 0;
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 		}
 
 		h2 {
@@ -59,11 +59,11 @@
 			font-family: var(--font-0);
 			margin: var(--small-gap-size) 0;
 			text-transform: uppercase;
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 		}
 
 		h3 {
@@ -71,19 +71,19 @@
 			font-family: var(--font-0);
 			margin: var(--large-gap-size) 0 var(--small-gap-size) 0;
 			text-transform: uppercase;
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 		}
 
 		h4 {
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 		}
 
 		p {
@@ -120,11 +120,11 @@
 		}
 
 		input[readonly], input[disabled], button[disabled], a[disabled], select[disabled] {
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 			pointer-events: none !important;
 		}
 
@@ -169,11 +169,11 @@
 			cursor: pointer;
 			text-transform: uppercase;
 			line-height: 1;
-			user-select: none !important;
 			-webkit-user-select: none !important;
 			-moz-user-select: none !important;
 			-ms-user-select: none !important;
 			-o-user-select: none !important;
+			user-select: none !important;
 			display: inline-block;
 			vertical-align: bottom;
 			transition: var(--transition-time);
@@ -274,11 +274,11 @@
 		background-color: var(--light-blue);
 		border-radius: var(--border-radius);
 		box-shadow: 0 0 var(--shadow-size) var(--light-gray);
-		user-select: none;
 		-webkit-user-select: none;
 		-moz-user-select: none;
 		-ms-user-select: none;
 		-o-user-select: none;
+		user-select: none;
 		z-index: 10000;
 		line-height: 1;
 		overflow: hidden;

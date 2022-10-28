@@ -26,11 +26,13 @@
 			second: 1000, // ms
 			minute: 1000 * 60, // ms
 			pingLoop: 1000 * 60, // ms
+			deleteTimeout: 1000 * 3, // ms
 			leftColumnWidth: 200, // px
+			measureContainerToNotesOffset: 10, // px
 			defaultTempo: 120, // bpm
 			tickWidth: 5, // var(--tick-width)
 			pitchHeight: 3 * 5, // var(--pitch-height) * var(--pitch-height-modifier)
-			minimumDuration: 2, // ms
+			minimumDuration: 2, // tick
 			ticksPerBeat: 24, // tick
 			quantizeTicks: 6, // tick
 			pitchesPerOctave: 12, // midi
@@ -310,6 +312,7 @@
 				outer: document.querySelector("#content-outer"),
 				table: document.querySelector("#content"),
 				measuresContainer: document.querySelector("#content-measures"),
+				measuresText: document.querySelector("#content-measures-text"),
 				measuresCurrent: document.querySelector("#content-measures-position-current"),
 				measuresTotal: document.querySelector("#content-measures-position-total"),
 				swing: document.querySelector("#content-measures-swing"),
@@ -445,7 +448,7 @@
 							action: "updatePartEditor",
 							composerId: STATE.composerId,
 							musicId: STATE.music.id,
-							partId: partId,
+							partId: STATE.selected.partId,
 							editorId: STATE.composerId
 						}))
 					}
@@ -511,7 +514,7 @@
 						if (data.deleted) {
 							setTimeout(function() {
 								window.location = "../../../../"
-							}, 5000)
+							}, CONSTANTS.deleteTimeout)
 						}
 
 				// data
@@ -994,6 +997,7 @@
 
 				// start --> revert any selected notes
 					revertNotes()
+					updateNoteHelper()
 
 				// tempo
 					let currentTempo = CONSTANTS.defaultTempo
@@ -1869,6 +1873,10 @@
 							partSpacer.className = "part-spacer"
 						partRow.appendChild(partSpacer)
 
+							const partSpacerBorder = document.createElement("div")
+								partSpacerBorder.className = "part-spacer-border"
+							partSpacer.appendChild(partSpacerBorder)
+
 						const partAfter = document.createElement("td")
 							partAfter.className = "part-after"
 						partRow.appendChild(partAfter)
@@ -1900,6 +1908,11 @@
 						measure.className = "part-measure"
 						measure.setAttribute("measure", measureNumber)
 					measuresContainer.insertBefore(measure, spacer)
+
+				// measure border
+					const measureBorderTop = document.createElement("div")
+						measureBorderTop.className = "part-measure-border"
+					measure.appendChild(measureBorderTop)
 
 				// notes container
 					const notesContainer = document.createElement("div")
@@ -1935,6 +1948,11 @@
 							dynamicsInput.appendChild(option)
 							volumeCount--
 						}
+
+				// measure border
+					const measureBorderBottom = document.createElement("div")
+						measureBorderBottom.className = "part-measure-border"
+					measure.appendChild(measureBorderBottom)
 
 				// object
 					return {
@@ -2877,8 +2895,8 @@
 					}
 
 				// measure
-					const measureElement = ELEMENTS.content.parts[STATE.selected.partId].measures[note.measureNumber].notesContainer
-					const measureRect = measureElement.getBoundingClientRect()
+					const notesContainer = ELEMENTS.content.parts[STATE.selected.partId].measures[note.measureNumber].notesContainer
+					const notesContainerRect = notesContainer.getBoundingClientRect()
 
 				// cursor coordinates
 					const cursorX = event.touches && event.touches.length ? event.touches[0].clientX : event.clientX
@@ -2886,8 +2904,8 @@
 
 				// info
 					STATE.cursor.measureNumber = note.measureNumber
-					STATE.cursor.ticksFromLeft = Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth)
-					STATE.cursor.pitchesFromTop = Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight)
+					STATE.cursor.ticksFromLeft = Math.floor((cursorX - notesContainerRect.x) / CONSTANTS.tickWidth)
+					STATE.cursor.pitchesFromTop = Math.floor((cursorY - notesContainerRect.y) / CONSTANTS.pitchHeight)
 			} catch (error) {console.log(error)}
 		}
 
@@ -2908,10 +2926,11 @@
 					}
 
 				// relative to measure
-					const measureNumber = measureElement.getAttribute("measure")
-					const measureRect = measureElement.getBoundingClientRect()
-					const ticksFromLeft = Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth)
-					const pitchesFromTop = Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight)
+					const measureNumber = Number(measureElement.getAttribute("measure"))
+					const notesContainer = ELEMENTS.content.parts[STATE.selected.partId].measures[measureNumber].notesContainer
+					const notesContainerRect = notesContainer.getBoundingClientRect()
+					const ticksFromLeft = Math.floor((cursorX - notesContainerRect.x) / CONSTANTS.tickWidth)
+					const pitchesFromTop = Math.floor((cursorY - notesContainerRect.y) / CONSTANTS.pitchHeight)
 
 				// new note
 					const note = {
@@ -3050,10 +3069,10 @@
 					const cursorY = event.touches && event.touches.length ? event.touches[0].clientY : event.clientY
 
 				// relative to measure
-					const measureElement = ELEMENTS.content.parts[STATE.selected.partId].measures[STATE.cursor.measureNumber].notesContainer
-					const measureRect = measureElement.getBoundingClientRect()
-					const ticksFromLeft = Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth)
-					const pitchesFromTop = Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight)
+					const notesContainer = ELEMENTS.content.parts[STATE.selected.partId].measures[STATE.cursor.measureNumber].notesContainer
+					const notesContainerRect = notesContainer.getBoundingClientRect()
+					const ticksFromLeft = Math.floor((cursorX - notesContainerRect.x) / CONSTANTS.tickWidth)
+					const pitchesFromTop = Math.floor((cursorY - notesContainerRect.y) / CONSTANTS.pitchHeight)
 
 				// change from before
 					const ticksChange = ticksFromLeft - STATE.cursor.ticksFromLeft
@@ -3204,10 +3223,10 @@
 					}
 
 				// info
-					const measureRect = measureElement.getBoundingClientRect()
 					const measureNumber = Number(measureElement.getAttribute("measure"))
-					const ticksFromLeft = Math.max(0, Math.floor((cursorX - measureRect.x) / CONSTANTS.tickWidth))
-					const pitchesFromTop = Math.max(0, Math.floor((cursorY - measureRect.y) / CONSTANTS.pitchHeight))
+					const notesContainerRect = notesContainer.getBoundingClientRect()
+					const ticksFromLeft = Math.max(0, Math.floor((cursorX - notesContainerRect.x) / CONSTANTS.tickWidth))
+					const pitchesFromTop = Math.max(0, Math.floor((cursorY - notesContainerRect.y) / CONSTANTS.pitchHeight))
 
 					if (measureNumber < 1 || measureNumber > Object.keys(STATE.music.measureTicks).length) {
 						return
@@ -3224,7 +3243,7 @@
 					const endPitch   = Math.max(CONSTANTS.highestPitch - pitchesFromTop, CONSTANTS.highestPitch - STATE.cursor.pitchesFromTop)
 
 				// down --> create box
-					if (event.type == TRIGGERS.mousedown || !ELEMENTS.content.selectionBox) {
+					if (event.type == TRIGGERS.mousedown && !ELEMENTS.content.selectionBox) {
 						const selectionBox = document.createElement("div")
 							selectionBox.id = "selection-box"
 						notesContainer.appendChild(selectionBox)
@@ -3289,15 +3308,18 @@
 				// get containers
 					const containerRect = ELEMENTS.content.parts[STATE.selected.partId].measuresContainer.getBoundingClientRect()
 					const infoRect = ELEMENTS.content.parts[STATE.selected.partId].infoContainer.getBoundingClientRect()
+					const headerRect = ELEMENTS.content.measuresText.getBoundingClientRect()
 
 				// out of bounds
-					if (cursorX < (infoRect.x + infoRect.width) || cursorY < containerRect.y || cursorY > (containerRect.y + containerRect.height)) {
+					if (cursorX < (infoRect.x + infoRect.width) || 
+						cursorY < (headerRect.y + headerRect.height) || 
+						cursorY < containerRect.y + CONSTANTS.measureContainerToNotesOffset || cursorY > (containerRect.y + containerRect.height)) {
 						ELEMENTS.help.noteHelper.innerText = ""
 						return
 					}
 
 				// get note
-					const midiNote = CONSTANTS.highestPitch - Math.floor((cursorY - containerRect.y) / CONSTANTS.pitchHeight)
+					const midiNote = CONSTANTS.highestPitch - Math.floor((cursorY - containerRect.y - CONSTANTS.measureContainerToNotesOffset) / CONSTANTS.pitchHeight)
 
 				// illegal note
 					if (midiNote < CONSTANTS.lowestPitch || midiNote > CONSTANTS.highestPitch) {
