@@ -232,16 +232,13 @@
 								return
 							}
 
-						// already a composer
+						// search composers
 							const music = results.documents[0]
 							const composerKeys = Object.keys(music.composers)
-							if (composerKeys.find(function(p) { return music.composers[p].sessionId == REQUEST.session.id })) {
-								callback({success: true, message: "joining music", location: "../music/" + music.id})
-								return
-							}
+							const composerKey = composerKeys.find(function(p) { return music.composers[p].sessionId == REQUEST.session.id }) || null
 
-						// create composer
-							const composer = CORE.getSchema("composer")
+						// upsert composer
+							const composer = composerKey ? music.composers[composerKey] : CORE.getSchema("composer")
 								composer.sessionId = REQUEST.session.id
 								composer.name = REQUEST.post.name.trim()
 
@@ -269,7 +266,7 @@
 									}
 									SESSION.updateOne(REQUEST, null, function() {
 										// redirect
-											callback({success: true, message: "music joined", location: "../music/" + music.id})
+											callback({success: true, message: "joining music", location: "../music/" + music.id})
 									})
 							})
 					})

@@ -151,7 +151,6 @@
 	/* state */
 		const STATE = {
 			composerId: null,
-			musicId: null,
 			music: {
 				id:           null,
 				created:      null,
@@ -389,6 +388,12 @@
 						storageData.music.push({id: STATE.music.id, title: STATE.music.title})
 						changed = true
 					}
+					else if (STATE.music.deleted) {
+						storageData.music = storageData.music.filter(function(item) {
+							return item.id !== STATE.music.id
+						}) || []
+						changed = true
+					}
 					else {
 						const storedMusic = storageData.music.find(function(item) {
 							return item.id == STATE.music.id
@@ -512,26 +517,25 @@
 
 					// deleted
 						if (data.deleted) {
+							STATE.music.deleted = true
+							updateStorage()
 							setTimeout(function() {
 								window.location = "../../../../"
 							}, CONSTANTS.deleteTimeout)
 						}
 
 				// data
-					// composer id
-						if (data.composerId !== undefined) {
-							STATE.composerId = data.composerId
-						}
+					if (!STATE.music.deleted) {
+						// composer id
+							if (data.composerId !== undefined) {
+								STATE.composerId = data.composerId
+							}
 
-					// music id
-						if (data.musicId !== undefined) {
-							STATE.musicId = data.musicId
-						}
-
-					// music data
-						if (data.music) {
-							receiveMusic(data.music)
-						}
+						// music data
+							if (data.music) {
+								receiveMusic(data.music)
+							}
+					}
 			} catch (error) {console.log(error)}
 		}
 
@@ -541,7 +545,6 @@
 				// metadata
 					if (musicJSON.id !== undefined) {
 						STATE.music.id = musicJSON.id
-						// what if this does not match STATE.musicId ???
 					}
 					if (musicJSON.created !== undefined) {
 						STATE.music.created = musicJSON.created
