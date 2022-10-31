@@ -148,8 +148,9 @@
 									const musicJSON = MUSICXML_J.parseMusicXML(musicXML)
 
 								// empty?
-									if (!musicJSON || !musicJSON.totalTicks || !musicJSON.parts || !Object.keys(musicJSON.parts).length) {
+									if (!musicJSON || !Object.keys(musicJSON.measureTicks).length || !musicJSON.parts || !Object.keys(musicJSON.parts).length) {
 										showToast({success: false, message: "unable to parse musicXML file"})
+										return
 									}
 
 								// post

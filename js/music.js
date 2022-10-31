@@ -1052,9 +1052,9 @@
 						// find in parts
 							for (let p in ELEMENTS.content.parts) {
 								const customSynths = ELEMENTS.content.parts[p].synthCustom
-								if (!customSynths.querySelector("[value='" + synthName + "']")) {
+								if (!customSynths.querySelector("[value='" + s + "']")) {
 									const synthOption = document.createElement("option")
-										synthOption.value = synthName
+										synthOption.value = s
 										synthOption.innerText = synthName
 									customSynths.appendChild(synthOption)
 								}
@@ -1870,6 +1870,11 @@
 								partVolume.title = "playback volume"
 								partVolume.addEventListener(TRIGGERS.input, setPartVolume)
 							partVolumeLabel.appendChild(partVolume)
+
+					// before
+						const partBefore = document.createElement("td")
+							partBefore.className = "part-before"
+						partRow.appendChild(partBefore)
 
 					// spacer
 						const partSpacer = document.createElement("td")
@@ -3613,7 +3618,7 @@
 					}
 
 				// slide measures
-					const totalOffset = -CONSTANTS.leftColumnWidth + 
+					const totalOffset = -2 * CONSTANTS.leftColumnWidth + 
 						ELEMENTS.content.measures[String(STATE.playback.currentMeasure)].element.offsetLeft + 
 						STATE.playback.currentTickOfMeasure * CONSTANTS.tickWidth
 					ELEMENTS.content.outer.scrollTo({left: totalOffset})

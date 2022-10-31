@@ -539,7 +539,7 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
-						query.document["synths." + synth.name] = synth
+						query.document["synths." + synth.id] = synth
 
 				// update
 					CORE.accessDatabase(query, function(results) {
