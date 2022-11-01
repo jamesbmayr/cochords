@@ -1171,7 +1171,7 @@
 
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1247,9 +1247,15 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {name: part.name}
 
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1313,9 +1319,15 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {midiProgram: part.midiProgram, instrument: part.instrument}
 
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1395,9 +1407,15 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {synth: part.synth}
 
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1540,11 +1558,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = music.parts[partId]
+
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = music.parts[partId]
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1693,9 +1719,15 @@
 						previousData.parts[partId] = {measures: {}}
 						previousData.parts[partId].measures[measureNumber] = {dynamics: part.measures[measureNumber].dynamics}
 
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1769,11 +1801,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = music.parts[partId]
+
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = music.parts[partId]
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1805,7 +1845,7 @@
 						const previousData = {parts: {}}
 							previousData.parts[partId] = {measures: {}}
 						for (let m in measuresToRevert) {
-							previousData.parts[partId].measures[m] = {notes: part.measures[m] ? part.measures[m].notes : {}}
+							previousData.parts[partId].measures[m] = {notes: part.measures[m] ? CORE.duplicateObject(part.measures[m].notes) : {}}
 						} 
 							
 						callback({musicId: musicId, success: false, message: "no valid notes to add", music: previousData, recipients: [REQUEST.session.id]})
@@ -1821,32 +1861,34 @@
 							updated: new Date().getTime()
 						}
 
-				// find measures
+				// updated parts
 					const updatedParts = {}
 						updatedParts[partId] = {measures: {}}
 
-					// loop through notes
-						for (let n in newNotes) {
-							// note
-								const newNote = newNotes[n]
+				// loop through notes
+					for (let n in newNotes) {
+						// note
+							const newNote = newNotes[n]
 
-							// get measure number
-								if (!updatedParts[partId].measures[String(newNote.measureNumber)]) {
-									updatedParts[partId].measures[String(newNote.measureNumber)] = {notes: part.measures[String(newNote.measureNumber)].notes}
-								}
+						// get measure
+							if (!updatedParts[partId].measures[String(newNote.measureNumber)]) {
+								updatedParts[partId].measures[String(newNote.measureNumber)] = {notes: CORE.duplicateObject(part.measures[String(newNote.measureNumber)].notes)}
+							}
 
-							// notes
+						// notes
+							if (!part.measures[String(newNote.measureNumber)].notes[String(newNote.tick)]) {
 								if (!updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)]) {
 									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)] = {}
-									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
 									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick] = {}
-									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick][String(newNote.pitch)] = newNote.duration
 								}
-								else {
-									updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
-									query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick + "." + newNote.pitch] = newNote.duration
-								}
-						}
+								updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+								query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick][String(newNote.pitch)] = newNote.duration
+							}
+							else {
+								updatedParts[partId].measures[String(newNote.measureNumber)].notes[String(newNote.tick)][String(newNote.pitch)] = newNote.duration
+								query.document["parts." + partId + ".measures." + newNote.measureNumber + ".notes." + newNote.tick + "." + newNote.pitch] = newNote.duration
+							}
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -1886,11 +1928,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = music.parts[partId]
+
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = music.parts[partId]
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1927,40 +1977,66 @@
 							updated: new Date().getTime()
 						}
 
-				// find measure
+				// updated parts
 					const updatedParts = {}
 						updatedParts[partId] = {measures: {}}
 
+				// loop through notes to remove old
 					for (let n in updatedNotes) {
 						// note
 							const note = updatedNotes[n]
 
+						// get measure
+							if (!updatedParts[partId].measures[String(note.before.measureNumber)]) {
+								updatedParts[partId].measures[String(note.before.measureNumber)] = {notes: CORE.duplicateObject(part.measures[String(note.before.measureNumber)].notes)}
+							}
+
 						// remove old note
-							updatedParts[partId].measures[String(note.before.measureNumber)] = {notes: part.measures[String(note.before.measureNumber)].notes}
 							if (updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]) {
 								delete updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)][String(note.before.pitch)]
 
 								// only pitch at this tick?
-									if (!Object.keys(updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]).length) {
+									if (!Object.keys(updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]).length &&
+										!updatedNotes.find(function(u) {
+											return u.after.measureNumber == note.before.measureNumber && u.after.tick == note.before.tick
+										})) {
 										delete updatedParts[partId].measures[String(note.before.measureNumber)].notes[String(note.before.tick)]
+										for (let i in query.document) {
+											if (i.includes("parts." + partId + ".measures." + note.before.measureNumber + ".notes." + note.before.tick + ".")) {
+												delete query.document[i]
+											}
+										}
 										query.document["parts." + partId + ".measures." + note.before.measureNumber + ".notes." + note.before.tick] = null
 									}
 									else {
 										query.document["parts." + partId + ".measures." + note.before.measureNumber + ".notes." + note.before.tick + "." + note.before.pitch] = null
 									}
 							}
+					}
+
+				// loop through notes to add new
+					for (let n in updatedNotes) {
+						// note
+							const note = updatedNotes[n]
+
+						// get measure
+							if (!updatedParts[partId].measures[String(note.after.measureNumber)]) {
+								updatedParts[partId].measures[String(note.after.measureNumber)] = {notes: CORE.duplicateObject(part.measures[String(note.after.measureNumber)].notes)}
+							}
 
 						// set new note
-							if (note.after.measureNumber !== note.before.measureNumber) {
-								updatedParts[partId].measures[String(note.after.measureNumber)] = {notes: part.measures[String(note.after.measureNumber)].notes}
-							}
-							if (!updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)]) {
-								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)] = {}
+							if (!part.measures[String(note.after.measureNumber)].notes[String(note.after.tick)]) {
+								if (!updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)]) {
+									updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)] = {}
+									query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick] = {}
+								}
 								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)][String(note.after.pitch)] = note.after.duration
-								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick] = {}
 								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick][String(note.after.pitch)] = note.after.duration
 							}
 							else {
+								if (!updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)]) {
+									updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)] = {}
+								}
 								updatedParts[partId].measures[String(note.after.measureNumber)].notes[String(note.after.tick)][String(note.after.pitch)] = note.after.duration
 								query.document["parts." + partId + ".measures." + note.after.measureNumber + ".notes." + note.after.tick + "." + note.after.pitch] = note.after.duration
 							}
@@ -2004,11 +2080,19 @@
 					}
 					const part = music.parts[REQUEST.post.partId]
 
+				// previous data
+					const previousData = {parts: {}}
+						previousData.parts[partId] = music.parts[partId]
+
+				// no editor
+					if (!part.editorId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
+						return
+					}
+
 				// already being edited by someone else
-					if (!part.editorId || part.editorId !== REQUEST.post.composerId) {
-						const previousData = {parts: {}}
-							previousData.parts[partId] = music.parts[partId]
-						callback({musicId: musicId, success: false, message: "part " + partId + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
+						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -2040,7 +2124,7 @@
 						const previousData = {parts: {}}
 							previousData.parts[partId] = {measures: {}}
 						for (let m in measuresToRevert) {
-							previousData.parts[partId].measures[m] = {notes: part.measures[m].notes}
+							previousData.parts[partId].measures[m] = {notes: CORE.duplicateObject(part.measures[m].notes)}
 						}
 						callback({musicId: musicId, success: false, message: "no valid notes to delete", music: previousData, recipients: [REQUEST.session.id]})
 						return
@@ -2055,27 +2139,40 @@
 							updated: new Date().getTime()
 						}
 
-				// find measure
+				// updated parts
 					const updatedParts = {}
 						updatedParts[partId] = {measures: {}}
 
-					// remove old notes
-						for (let n in oldNotes) {
+				// loop through notes
+					for (let n in oldNotes) {
+						// note
 							const oldNote = oldNotes[n]
-							updatedParts[partId].measures[String(oldNote.measureNumber)] = {notes: part.measures[String(oldNote.measureNumber)].notes}
+
+						// get measure
+							if (!updatedParts[partId].measures[String(oldNote.measureNumber)]) {
+								updatedParts[partId].measures[String(oldNote.measureNumber)] = {notes: CORE.duplicateObject(part.measures[String(oldNote.measureNumber)].notes)}
+							}
+
+						// delete notes
 							if (updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]) {
 								delete updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)][String(oldNote.pitch)]
 
 								// only pitch at this tick?
 									if (!Object.keys(updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]).length) {
 										delete updatedParts[partId].measures[String(oldNote.measureNumber)].notes[String(oldNote.tick)]
+
+										for (let i in query.document) {
+											if (i.includes("parts." + partId + ".measures." + oldNote.measureNumber + ".notes." + oldNote.tick + ".")) {
+												delete query.document[i]
+											}
+										}
 										query.document["parts." + partId + ".measures." + oldNote.measureNumber + ".notes." + oldNote.tick] = null
 									}
 									else {
 										query.document["parts." + partId + ".measures." + oldNote.measureNumber + ".notes." + oldNote.tick + "." + oldNote.pitch] = null
 									}
 							}
-						}
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {

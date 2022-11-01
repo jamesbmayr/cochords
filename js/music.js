@@ -448,17 +448,18 @@
 				STATE.socket = new WebSocket(url)
 				STATE.socket.keepPinging = false
 				STATE.socket.onopen = function() {
+					STATE.socket.send(null)
+
 					if (STATE.selected.partId) {
-						STATE.socket.send(JSON.stringify({
-							action: "updatePartEditor",
-							composerId: STATE.composerId,
-							musicId: STATE.music.id,
-							partId: STATE.selected.partId,
-							editorId: STATE.composerId
-						}))
-					}
-					else {
-						STATE.socket.send(null)
+						setTimeout(function() {
+							STATE.socket.send(JSON.stringify({
+								action: "updatePartEditor",
+								composerId: STATE.composerId,
+								musicId: STATE.music.id,
+								partId: STATE.selected.partId,
+								editorId: STATE.composerId
+							}))
+						}, 1000)
 					}
 				}
 				STATE.socket.onerror = function(error) {
@@ -3173,9 +3174,9 @@
 									const note = {
 										id: m + "." + n + ":" + p,
 										measureNumber: m,
-										tick: n,
-										duration: measure.notes[n][p],
-										pitch: p,
+										tick: Number(n),
+										duration: Number(measure.notes[n][p]),
+										pitch: Number(p),
 										end: false
 									}
 									notes.push(note)

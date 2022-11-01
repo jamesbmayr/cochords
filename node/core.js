@@ -1165,7 +1165,9 @@
 					}
 
 				// log
-					logMessage("db: " + query.command + " " + query.collection)
+					logMessage("db: " + query.command + " " + query.collection + 
+						(query.filters ? "\n   > " + JSON.stringify(query.filters) : "") +
+						(query.document ? "\n   > " + JSON.stringify(query.document) : ""))
 
 				// go to Mongo
 					if (ENVIRONMENT.db_url) {
