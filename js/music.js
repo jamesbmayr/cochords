@@ -1743,44 +1743,8 @@
 								partSynth.setAttribute("tabindex", "-1")
 							partSynthLabel.appendChild(partSynth)
 
-							// simple
-								const simpleSynths = AUDIO_J.getInstruments("simple")
-								const simpleGroup = document.createElement("optgroup")
-									simpleGroup.label = "[simple]"
-								partSynth.appendChild(simpleGroup)
-								
-								for (let i in simpleSynths) {
-									const option = document.createElement("option")
-										option.innerText = simpleSynths[i]
-										option.value = simpleSynths[i]
-									simpleGroup.appendChild(option)
-								}
-
-							// default
-								const defaultSynths = AUDIO_J.getInstruments("default")
-								const defaultGroup = document.createElement("optgroup")
-									defaultGroup.label = "[default]"
-								partSynth.appendChild(defaultGroup)
-								
-								for (let i in defaultSynths) {
-									const option = document.createElement("option")
-										option.innerText = defaultSynths[i]
-										option.value = defaultSynths[i]
-									defaultGroup.appendChild(option)
-								}
-
-							// custom
-								const customSynths = Object.keys(STATE.music.synths) || []
-								const customGroup = document.createElement("optgroup")
-									customGroup.label = "[custom]"
-								partSynth.appendChild(customGroup)
-								
-								for (let i in customSynths) {
-									const option = document.createElement("option")
-										option.innerText = customSynths[i]
-										option.value = customSynths[i]
-									customGroup.appendChild(option)
-								}
+							const instrumentListStructure = AUDIO_J.getInstruments({include: ["simple", "default", "custom"], grouping: "family", format: "select", select: partSynth})
+							const customGroup = instrumentListStructure.custom._optgroup
 
 						// delete
 							const partDeleteOuter = document.createElement("details")
