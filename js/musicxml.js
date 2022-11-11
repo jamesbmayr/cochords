@@ -405,7 +405,7 @@
 					"128": "Gunshot"
 				},
 				instrumentToSynth: {
-					"percussion": "boombash", // 0
+					"percussion": "*percusstom*", // 0
 					"acoustic grand piano": "keystone", // 1
 					"bright acoustic piano": "keystone", // 2
 					"electric grand piano": "keystone", // 3
@@ -528,7 +528,6 @@
 					"fifths": "chordstrum",
 					"lead 8 (bass + lead)": "lowdium", // 88
 					"bass + lead": "lowdium",
-					"bass": "lowdium",
 					"lead": "triangle",
 					"pad 1 (new age)": "consona", // 89
 					"new age": "consona",
@@ -579,22 +578,37 @@
 					"tinkle bell": "bellissful", // 113
 					"bells": "bellissful",
 					"bell": "bellissful",
+					"triangle": "bellissful",
 					"agogo": "meltmallet", // 114
 					"steel drums": "meltmallet", // 115
-					"woodblock": "boombash", // 116
+					"woodblock": "blik", // 116
+					"claves": "blik",
 					"taiko drum": "ensnarl", // 117
 					"taiko": "ensnarl",
-					"melodic tom": "thumpano", // 118
-					"tom": "ensnarl",
-					"synth drum": "thumpano", // 119
-					"drum set": "ensnarl",
-					"drumset": "ensnarl",
-					"drums": "boombash",
-					"drum": "boombash",
+					"melodic tom": "tomgo", // 118
+					"tom": "tomgo",
+					"synth drum": "tomgo", // 119
+					"snare": "ensnarl",
+					"bass drum": "boombash",
+					"kick drum": "boombash",
+					"drum set": "*percusstom*",
+					"drumset": "*percusstom*",
+					"drums": "*percusstom*",
+					"drum": "*percusstom*",
 					"reverse cymbal": "cymbilant", // 120
+					"hi hat": "hellohat",
+					"hi-hat": "hellohat",
+					"hihat": "hellohat",
+					"crash": "cymbilant",
+					"ride": "cymbilant",
+					"splash": "cymbilant",
+					"cymbal": "cymbilant",
+					"tambourine": "plately",
 					"guitar fret noise": "buzzorgan", // 121
 					"breath noise": "bitbottle", // 122
-					"seashore": "cymbilant", // 123
+					"seashore": "sandscrape", // 123
+					"shaker": "sandscrape",
+					"maraca": "sandscrape",
 					"bird tweet": "shring", // 124
 					"telephone ring": "telephex", // 125
 					"helicopter": "ensnarl", // 126
@@ -608,6 +622,7 @@
 					"baritone": "trombus",
 					"mellophone": "trombus",
 					"euphonium": "trombus",
+					"bass": "lowdium",
 					"synthesizer": "qube",
 					"synth": "qube"
 				},

@@ -43,7 +43,7 @@
 				doubleBeats: [13, 16, 19, 22] // tick
 			},
 			metronome: {
-				synth: "ensnarl",
+				synth: "blik",
 				volume: 0.2, // ratio
 				frequency: 440, // Hz
 				sustain: 200, // ms
