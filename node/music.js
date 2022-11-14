@@ -1167,18 +1167,18 @@
 
 				// previous data
 					const previousData = {parts: {}}
-						previousData.parts[partId] = {editor: part.editorId}
+						previousData.parts[partId] = {editorId: part.editorId}
 
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
 				// illegal move
 					const editorId = REQUEST.post.editorId
 					if (editorId && !(editorId in music.composers)) {
-						callback({musicId: musicId, success: false, message: "cannot make someone else edit part " + partId, music: previousData, recipients: [REQUEST.session.id]})
+						callback({musicId: musicId, success: false, message: "cannot make someone else edit " + partId, music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1247,15 +1247,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {name: part.name}
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1275,6 +1270,10 @@
 							updated: new Date().getTime()
 						}
 						query.document["parts." + partId + ".name"] = name
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -1319,15 +1318,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {midiProgram: part.midiProgram, instrument: part.instrument}
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1363,6 +1357,10 @@
 						query.document["parts." + partId + ".midiProgram"] = midiProgram
 						query.document["parts." + partId + ".instrument"] = instrument
 						query.document["parts." + partId + ".synth"] = synth
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -1407,15 +1405,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = {synth: part.synth}
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1435,6 +1428,10 @@
 							updated: new Date().getTime()
 						}
 						query.document["parts." + partId + ".synth"] = synth
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// update
 					CORE.accessDatabase(query, function(results) {
@@ -1562,15 +1559,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = music.parts[partId]
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1719,15 +1711,10 @@
 						previousData.parts[partId] = {measures: {}}
 						previousData.parts[partId].measures[measureNumber] = {dynamics: part.measures[measureNumber].dynamics}
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1756,6 +1743,10 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// update this measure
 					const updatedParts = {}
@@ -1805,15 +1796,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = music.parts[partId]
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1860,6 +1846,10 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// updated parts
 					const updatedParts = {}
@@ -1932,15 +1922,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = music.parts[partId]
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -1976,6 +1961,10 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// updated parts
 					const updatedParts = {}
@@ -2084,15 +2073,10 @@
 					const previousData = {parts: {}}
 						previousData.parts[partId] = music.parts[partId]
 
-				// no editor
-					if (!part.editorId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is not currently claimed", music: previousData, recipients: [REQUEST.session.id]})
-						return
-					}
-
 				// already being edited by someone else
 					if (part.editorId && part.editorId !== REQUEST.post.composerId) {
-						callback({musicId: musicId, success: false, message: "part " + part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
+						previousData.parts[partId].editorId = part.editorId
+						callback({musicId: musicId, success: false, message: part.name + " is being edited by someone else", music: previousData, recipients: [REQUEST.session.id]})
 						return
 					}
 
@@ -2138,6 +2122,10 @@
 						query.document = {
 							updated: new Date().getTime()
 						}
+
+					if (!part.editorId) {
+						query.document["parts." + partId + ".editorId"] = REQUEST.post.composerId
+					}
 
 				// updated parts
 					const updatedParts = {}
@@ -2207,12 +2195,17 @@
 				// assume same
 					note.measureNumber = Number(note.measureNumber)
 					const lastMeasureNumber = Object.keys(measureTicks).length
+					if (!lastMeasureNumber) {
+						return null
+					}
 
 				// go back
 					while (note.tick < 0) {
 						note.measureNumber--
 						if (!note.measureNumber) {
-							return null
+							note.measureNumber = 1
+							note.tick = 0
+							break
 						}
 						note.tick += measureTicks[String(note.measureNumber)]						
 					}
@@ -2222,13 +2215,10 @@
 						note.tick -= measureTicks[String(note.measureNumber)]
 						note.measureNumber++
 						if (note.measureNumber > lastMeasureNumber) {
-							return null
+							note.measureNumber = lastMeasureNumber
+							note.tick = measureTicks[String(lastMeasureNumber)] - 1
+							break
 						}
-					}
-
-				// out of bounds
-					if (note.measureNumber <= 0 || note.measureNumber > lastMeasureNumber) {
-						return null
 					}
 
 				// return

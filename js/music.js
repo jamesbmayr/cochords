@@ -999,8 +999,8 @@
 						return
 					}
 
-				// start --> revert any selected notes
-					revertNotes()
+				// start --> submit any selected notes
+					updateNotes()
 					updateNoteHelper()
 
 				// tempo
@@ -2690,11 +2690,6 @@
 	/* updateNotes */
 		function updateNotes(notes) {
 			try {
-				// playing
-					if (STATE.playback.playing) {
-						return
-					}
-					
 				// no part selected
 					if (!STATE.selected.partId) {
 						return
@@ -3147,9 +3142,27 @@
 								}
 							}
 						}
+
+					// notes? --> selection
 						if (notes.length) {
 							selectNotes(notes)
+							return
 						}
+
+					// no notes? --> creation
+						const duration = Math.floor(selectionBox.endTick + 1 - selectionBox.startTick) || 0
+						if (duration < CONSTANTS.quantizeTicks || selectionBox.startPitch !== selectionBox.endPitch) {
+							return
+						}
+
+						const note = {
+							measureNumber: selectionBox.startMeasure,
+							tick: selectionBox.startTick,
+							duration: duration,
+							pitch: selectionBox.startPitch
+						}
+
+						addNotes([note], true)
 			} catch (error) {console.log(error)}
 		}
 
