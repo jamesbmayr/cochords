@@ -1468,7 +1468,7 @@
 						STATE.music.parts[partId].synth = partJSON.synth
 						partObject.synthSelect.value = partJSON.synth
 
-						if (AUDIO_J.audio) {
+						if (AUDIO_J.audio && (!AUDIO_J.instruments[partId] || AUDIO_J.instruments[partId].parameters.name !== partJSON.synth)) {
 							if (AUDIO_J.instruments[partId]) {
 								AUDIO_J.instruments[partId].setParameters({power: 0})
 							}
@@ -1477,11 +1477,19 @@
 							if (parameters) {
 								AUDIO_J.instruments[partId] = AUDIO_J.buildInstrument(parameters)
 
+								if (ELEMENTS.content.parts[partId]) {
+									const volume = Math.min(1, Math.max(0, Number(ELEMENTS.content.parts[partId].volumeInput.value)))
+									AUDIO_J.instruments[partId].setParameters({volume: volume})
+
+									const panning = Math.min(1, Math.max(-1, Number(ELEMENTS.content.parts[partId].panningInput.value)))
+									AUDIO_J.instruments[partId].setParameters({panning: panning})
+								}
+
 								if (STATE.playback.playing || STATE.selected.partId == partId) {
 									AUDIO_J.instruments[partId].setParameters({power: 1})
 								}
 								else {
-									AUDIO_J.instruments[partId].setParameters({power: 0})	
+									AUDIO_J.instruments[partId].setParameters({power: 0})
 								}
 							}
 						}
