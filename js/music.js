@@ -2440,7 +2440,7 @@
 		}
 
 	/* selectNotes */
-		function selectNotes(notes) {
+		function selectNotes(notes, sound) {
 			try {
 				// playing
 					if (STATE.playback.playing) {
@@ -2450,6 +2450,15 @@
 				// no part selected
 					if (!STATE.selected.partId) {
 						return
+					}
+
+				// sound
+					if (sound && AUDIO_J.audio && AUDIO_J.instruments[STATE.selected.partId]) {
+						for (let n in notes) {
+							const frequency = AUDIO_J.getNote(notes[n].pitch)[0]
+							AUDIO_J.instruments[STATE.selected.partId].press(frequency, CONSTANTS.metronome.volume)
+							AUDIO_J.instruments[STATE.selected.partId].lift(frequency, CONSTANTS.metronome.sustain)
+						}
 					}
 
 				// loop through to find elements
@@ -2974,7 +2983,7 @@
 							}
 
 						// note not selected --> add to selection
-							selectNotes([note])
+							selectNotes([note], true)
 							return
 					}
 
@@ -2991,7 +3000,7 @@
 
 					// note not selected --> make this the only selection
 						updateNotes()
-						selectNotes([note])
+						selectNotes([note], true)
 						moveMouse(event)
 			} catch (error) {console.log(error)}
 		}
@@ -3158,19 +3167,38 @@
 						}
 
 					// no notes? --> creation
-						const duration = Math.floor(selectionBox.endTick + 1 - selectionBox.startTick) || 0
-						if (duration < CONSTANTS.quantizeTicks || selectionBox.startPitch !== selectionBox.endPitch) {
-							return
-						}
+						// multiple pitches?
+							if (selectionBox.startPitch !== selectionBox.endPitch) {
+								return
+							}
 
-						const note = {
-							measureNumber: selectionBox.startMeasure,
-							tick: selectionBox.startTick,
-							duration: duration,
-							pitch: selectionBox.startPitch
-						}
+						// duration
+							let duration = 1
+							if (selectionBox.startMeasure == selectionBox.endMeasure) {
+								duration += Math.floor(selectionBox.endTick - selectionBox.startTick)
+							}
+							else {
+								duration += STATE.music.measureTicks[String(selectionBox.startMeasure)] - selectionBox.startTick
+								for (let i = selectionBox.startMeasure + 1; i < selectionBox.endMeasure; i++) {
+									duration += STATE.music.measureTicks[String(i)]
+								}
+								duration += selectionBox.endTick
+							}
 
-						addNotes([note], true)
+						// no duration?
+							if (duration < CONSTANTS.quantizeTicks) {
+								return
+							}
+
+						// create note
+							const note = {
+								measureNumber: selectionBox.startMeasure,
+								tick: selectionBox.startTick,
+								duration: duration,
+								pitch: selectionBox.startPitch
+							}
+
+							addNotes([note], true)
 			} catch (error) {console.log(error)}
 		}
 
@@ -3387,7 +3415,7 @@
 							}
 						
 						// add to selection
-							selectNotes([note])
+							selectNotes([note], true)
 							event.preventDefault()
 							return
 					}

@@ -425,6 +425,7 @@
 								maximumMusicComposerLength: 100,
 								minimumPartNameLength: 1,
 								maximumPartNameLength: 20,
+								minimumDuration: 2,
 								defaultTicks: 96,
 								defaultTempo: 120,
 								defaultMeasureCount: 4,

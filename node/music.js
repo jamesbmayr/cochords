@@ -2221,6 +2221,21 @@
 						}
 					}
 
+				// adjust duration
+					let maximumDuration = measureTicks[String(note.measureNumber)] - note.tick
+					for (let i = note.measureNumber + 1; i <= lastMeasureNumber; i++) {
+						maximumDuration += measureTicks[String(i)]
+						if (maximumDuration >= note.duration) {
+							break
+						}
+					}
+					note.duration = Math.min(note.duration, maximumDuration)
+					
+					while (note.duration < CONSTANTS.minimumDuration) {
+						note.tick -= 1
+						note.duration += 1
+					}
+
 				// return
 					return note
 			}
