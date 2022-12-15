@@ -1525,12 +1525,14 @@
 			try {
 				// previously selected?
 					const wasSelected = Boolean(partId == STATE.selected.partId)
+					if (STATE.selected.partId == partId) {
+						STATE.selected.partId == null
+					}
 
 				// no one or someone else now
 					if (partJSON.editorId == null) {
 						// no editor
 							delete STATE.music.parts[partId].editorId
-							STATE.selected.partId = null
 
 						// editor text
 							partObject.editorText.innerHTML = ""
@@ -1542,7 +1544,6 @@
 					else if (partJSON.editorId !== STATE.composerId) {
 						// other editor
 							STATE.music.parts[partId].editorId = partJSON.editorId
-							STATE.selected.partId = null
 
 						// editor text
 							partObject.editorText.innerHTML = "&#128274;&nbsp;" + STATE.music.composers[partJSON.editorId].name
