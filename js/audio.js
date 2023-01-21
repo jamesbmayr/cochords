@@ -10,12 +10,15 @@
 				oscillatorFactor: 1.05946309436, // Hz ratio per semitone
 				harmonicsCount: 32, // wave overtones
 				bufferCount: 1024, // array size
+				maxDetuneCents: 100, // semitone ¢
 				maxVibratoCents: 200, // semitone ¢
 				minVibratoInterval: 1, // ms
 				maxVibratoInterval: 500, // ms
 				maxChorusCents: 50, // semitone ¢
 				maxChorusDelay: 0.05, // s
 				chorusGain: 0.25, // ratio
+				minFilterloopInterval: 1, // ms
+				maxFilterloopInterval: 5000, // ms
 				minTremoloInterval: 1, // ms
 				maxTremoloInterval: 1000, // ms
 				envelopeComponents: ["attack", "decay", "sustain", "release"],
@@ -2874,6 +2877,7 @@
 					}
 
 					instrument.parameters = {
+						microphone:   false,
 						polysynth:    {},
 						vibrato:      {
 							active:   false,
@@ -2896,6 +2900,11 @@
 							norm:     0
 						},
 						filters:      {},
+						filterloop: {
+							wave:     null,
+							depth:    0,
+							interval: 0
+						},
 						tremolo: {
 							wave:     null,
 							depth:    0,
@@ -2922,6 +2931,7 @@
 					}
 						
 					instrument.nodes = {
+						microphone:    null,
 						noise:         {},
 						vibratoOsc:    AUDIO_J.audio.createOscillator(),
 						vibratoGain:   AUDIO_J.audio.createGain(),
@@ -2930,8 +2940,12 @@
 						bitcrusherIn:  AUDIO_J.audio.createGain(),
 						bitcrusher:    AUDIO_J.audio.createScriptProcessor(AUDIO_J.constants.bufferCount, 1, 1),
 						bitcrusherOut: AUDIO_J.audio.createGain(),
+						filterOsc:     AUDIO_J.audio.createOscillator(),
+						filterOscGain: AUDIO_J.audio.createGain(),
+						filterOscGainNeg: AUDIO_J.audio.createGain(),
 						filterIn:      AUDIO_J.audio.createGain(),
 						filters:       {},
+						filterBy:      AUDIO_J.audio.createGain(),
 						filterOut:     AUDIO_J.audio.createGain(),
 						tremoloOsc:    AUDIO_J.audio.createOscillator(),
 						tremoloGain:   AUDIO_J.audio.createGain(),
@@ -2967,53 +2981,58 @@
 				// noise
 					for (let color in AUDIO_J.noise) {
 						instrument.nodes.noise[color] = AUDIO_J.audio.createGain()
-						instrument.nodes.noise[color].gain.setValueAtTime(0, now)
+						instrument.nodes.noise[color].gain.value = 0
 						AUDIO_J.noise[color].connect(instrument.nodes.noise[color]) // noise in, but not out
 					}
 
 				// default values
 					instrument.nodes.vibratoOsc.type = "sine"
-					instrument.nodes.vibratoOsc.frequency.setValueAtTime(0, now)
-					instrument.nodes.vibratoGain.gain.setValueAtTime(0, now)
+					instrument.nodes.vibratoOsc.frequency.value = 0
+					instrument.nodes.vibratoGain.gain.value = 0
 
-					instrument.nodes.effectsIn.gain.setValueAtTime(1, now)
+					instrument.nodes.effectsIn.gain.value = 1
 					
-					instrument.nodes.bitcrusherIn.gain.setValueAtTime(1, now)
-					instrument.nodes.bitcrusherOut.gain.setValueAtTime(1, now)
+					instrument.nodes.bitcrusherIn.gain.value = 1
+					instrument.nodes.bitcrusherOut.gain.value = 1
 					
-					instrument.nodes.filterIn.gain.setValueAtTime(1, now)
-					instrument.nodes.filterOut.gain.setValueAtTime(1, now)
+					instrument.nodes.filterOsc.type = "sine"
+					instrument.nodes.filterOsc.frequency.value = 0
+					instrument.nodes.filterOscGain.gain.value = 0
+					instrument.nodes.filterOscGainNeg.gain.value = -1
+					instrument.nodes.filterIn.gain.value = 1
+					instrument.nodes.filterOut.gain.value = 1
+					instrument.nodes.filterBy.gain.value = 0
 					
 					instrument.nodes.tremoloOsc.type = "sine"
-					instrument.nodes.tremoloOsc.frequency.setValueAtTime(0, now)
-					instrument.nodes.tremoloGain.gain.setValueAtTime(0, now)
-					instrument.nodes.tremoloThrough.gain.setValueAtTime(1, now)
+					instrument.nodes.tremoloOsc.frequency.value = 0
+					instrument.nodes.tremoloGain.gain.value = 0
+					instrument.nodes.tremoloThrough.gain.value = 1
 						
-					instrument.nodes.echoIn.gain.setValueAtTime(1, now)
-					instrument.nodes.delay.delayTime.setValueAtTime(0, now)
-					instrument.nodes.feedback.gain.setValueAtTime(0, now)
-					instrument.nodes.echoOut.gain.setValueAtTime(1, now)
+					instrument.nodes.echoIn.gain.value = 1
+					instrument.nodes.delay.delayTime.value = 0
+					instrument.nodes.feedback.gain.value = 0
+					instrument.nodes.echoOut.gain.value = 1
 
-					instrument.nodes.distortionIn.gain.setValueAtTime(1, now)
-					instrument.nodes.distortionBy.gain.setValueAtTime(1, now)
-					instrument.nodes.distortionFrom.gain.setValueAtTime(0, now)
-					instrument.nodes.distortionOut.gain.setValueAtTime(1, now)
+					instrument.nodes.distortionIn.gain.value = 1
+					instrument.nodes.distortionBy.gain.value = 1
+					instrument.nodes.distortionFrom.gain.value = 0
+					instrument.nodes.distortionOut.gain.value = 1
 
-					instrument.nodes.reverbIn.gain.setValueAtTime(1, now)
-					instrument.nodes.reverbBy.gain.setValueAtTime(1, now)
-					instrument.nodes.reverbTo.gain.setValueAtTime(0, now)
-					instrument.nodes.reverbOut.gain.setValueAtTime(1, now)
+					instrument.nodes.reverbIn.gain.value = 1
+					instrument.nodes.reverbBy.gain.value = 1
+					instrument.nodes.reverbTo.gain.value = 0
+					instrument.nodes.reverbOut.gain.value = 1
 					
-					instrument.nodes.compressor.threshold.setValueAtTime(0, now)
-					instrument.nodes.compressor.knee.setValueAtTime(AUDIO_J.constants.defaultCompressorKnee, now)
-					instrument.nodes.compressor.ratio.setValueAtTime(1, now)
-					instrument.nodes.compressor.attack.setValueAtTime(0, now)
-					instrument.nodes.compressor.release.setValueAtTime(0, now)
+					instrument.nodes.compressor.threshold.value = 0
+					instrument.nodes.compressor.knee.value = AUDIO_J.constants.defaultCompressorKnee
+					instrument.nodes.compressor.ratio.value = 1
+					instrument.nodes.compressor.attack.value = 0
+					instrument.nodes.compressor.release.value = 0
 
-					instrument.nodes.effectsIn.gain.setValueAtTime(1, now)
+					instrument.nodes.effectsIn.gain.value = 1
 						
-					instrument.nodes.volume.gain.setValueAtTime(instrument.currentVolume, now)	
-					instrument.nodes.power.gain.setValueAtTime(instrument.currentPower, now)
+					instrument.nodes.volume.gain.value = instrument.currentVolume
+					instrument.nodes.power.gain.value = instrument.currentPower
 
 				// connections
 					instrument.nodes.vibratoOsc.connect(instrument.nodes.vibratoGain) // oscillator
@@ -3024,8 +3043,16 @@
 						instrument.nodes.bitcrusherIn.connect(instrument.nodes.bitcrusherOut) // bypass
 							instrument.nodes.bitcrusher.connect(instrument.nodes.bitcrusherOut)
 						instrument.nodes.bitcrusherOut.connect(instrument.nodes.filterIn)
-					
-						instrument.nodes.filterIn.connect(instrument.nodes.filterOut) // bypass
+							
+							instrument.nodes.filterOsc.connect(instrument.nodes.filterOscGain) // oscillator
+							instrument.nodes.filterOscGain.connect(instrument.nodes.filterOut.gain)
+							instrument.nodes.filterOscGain.connect(instrument.nodes.filterOscGainNeg)
+							instrument.nodes.filterOscGainNeg.connect(instrument.nodes.filterBy.gain)
+							instrument.nodes.filterOsc.start()
+						instrument.nodes.filterIn.connect(instrument.nodes.filterBy) // bypass
+						instrument.nodes.filterBy.connect(instrument.nodes.tremoloThrough)
+
+						instrument.nodes.filterIn.connect(instrument.nodes.filterOut) // through
 							// any number of filters
 						instrument.nodes.filterOut.connect(instrument.nodes.tremoloThrough)
 
@@ -3135,6 +3162,24 @@
 									instrument.nodes.volume.gain.setValueAtTime(parameters.volume, now)
 								}
 
+							// microphone
+								if (parameters.microphone !== undefined) {
+									if (!parameters.microphone) {
+										instrument.parameters.microphone = false
+										if (instrument.nodes.microphone) {
+											instrument.nodes.microphone.disconnect()
+										}
+										instrument.nodes.microphone = null
+									}
+									else if (navigator.mediaDevices) {
+										navigator.mediaDevices.getUserMedia({audio: true, video: false}).then(function(stream) {
+											instrument.parameters.microphone = true
+											instrument.nodes.microphone = AUDIO_J.audio.createMediaStreamSource(stream)
+											instrument.nodes.microphone.connect(instrument.nodes.effectsIn)
+										})
+									}
+								}
+
 							// oscillator
 								if (parameters.imag !== undefined) {
 									instrument.parameters.imag = new Float32Array(1 + AUDIO_J.constants.harmonicsCount)
@@ -3155,11 +3200,16 @@
 								if (parameters.polysynth !== undefined) {
 									for (let x in parameters.polysynth) {
 										const tone = x
-										if (parameters.polysynth[tone] && !instrument.parameters.polysynth[tone]) {
+										if (parameters.polysynth[tone] === 0 || parameters.polysynth[tone] === true) {
 											instrument.parameters.polysynth[tone] = true
 										}
-										else if (!parameters.polysynth[tone] && instrument.parameters.polysynth[tone]) {
-											delete instrument.parameters.polysynth[tone]
+										else if (parameters.polysynth[tone]) {
+											instrument.parameters.polysynth[tone] = Math.max(AUDIO_J.constants.maxDetuneCents * -1, Math.min(AUDIO_J.constants.maxDetuneCents, parameters.polysynth[tone])) || true
+										}
+										else {
+											if (instrument.parameters.polysynth[tone]) {
+												delete instrument.parameters.polysynth[tone]
+											}
 										}
 									}
 								}
@@ -3285,6 +3335,7 @@
 
 									// manage connections
 										instrument.nodes.filterIn.disconnect()
+										instrument.nodes.filterIn.connect(instrument.nodes.filterBy)
 
 										var fkeys = Object.keys(instrument.nodes.filters) || []
 										if (fkeys.length) {
@@ -3306,6 +3357,37 @@
 										}
 										else {
 											instrument.nodes.filterIn.connect(instrument.nodes.filterOut)
+										}
+								}
+
+							// filterloop
+								if (parameters.filterloop !== undefined) {
+									// parameters
+										if (parameters.filterloop.wave !== undefined) {
+											instrument.parameters.filterloop.wave = (parameters.filterloop.wave in AUDIO_J.simpleInstruments) ? parameters.filterloop.wave : null
+										}
+										if (parameters.filterloop.interval !== undefined) {
+											instrument.parameters.filterloop.interval = Math.max(AUDIO_J.constants.minFilterloopInterval, Math.min(AUDIO_J.constants.maxFilterloopInterval, parameters.filterloop.interval)) || 0
+										}
+										if (parameters.filterloop.depth !== undefined) {
+											instrument.parameters.filterloop.depth = Math.max(0, Math.min(1, parameters.filterloop.depth))
+										}
+
+									// nodes
+										if (!instrument.parameters.filterloop.wave || !instrument.parameters.filterloop.interval || !instrument.parameters.filterloop.depth) {
+											instrument.nodes.filterOsc.type = "sine"
+											instrument.nodes.filterOsc.frequency.setValueAtTime(0, now)
+											instrument.nodes.filterOscGain.gain.value = 0
+											instrument.nodes.filterBy.gain.value = 0
+											instrument.nodes.filterOut.gain.value = 1
+										}
+										else {
+											const rate = 1 / (instrument.parameters.filterloop.interval / AUDIO_J.constants.ms)
+											instrument.nodes.filterOsc.type = instrument.parameters.filterloop.wave
+											instrument.nodes.filterOsc.frequency.setValueAtTime(rate, now)
+											instrument.nodes.filterOscGain.gain.value = instrument.parameters.filterloop.depth
+											instrument.nodes.filterBy.gain.value = 0.5
+											instrument.nodes.filterOut.gain.value = 0.5
 										}
 								}
 
@@ -3533,11 +3615,13 @@
 									// info
 										const distance = p
 										const multiplier = Math.pow(AUDIO_J.constants.oscillatorFactor, distance)
+										const detuneCents = (instrument.parameters.polysynth[p] === true) ? 0 : instrument.parameters.polysynth[p]
 									
 									// main
 										note.oscillators[p] = AUDIO_J.audio.createOscillator()
 										note.oscillators[p].connect(note.velocity)
 										note.oscillators[p].frequency.setValueAtTime(pitch * multiplier, now)
+										note.oscillators[p].detune.setValueAtTime(detuneCents, now)
 										note.oscillators[p].setPeriodicWave(instrument.parameters.wave)
 										note.oscillators[p].start(now)
 
@@ -3546,28 +3630,28 @@
 											note.oscillators[p + "##"] = AUDIO_J.audio.createOscillator()
 											note.oscillators[p + "##"].connect(note.chorus.gain)
 											note.oscillators[p + "##"].frequency.setValueAtTime(pitch * multiplier, now)
-											note.oscillators[p + "##"].detune.setValueAtTime(instrument.parameters.chorus.variance, now)
+											note.oscillators[p + "##"].detune.setValueAtTime(detuneCents + instrument.parameters.chorus.variance, now)
 											note.oscillators[p + "##"].setPeriodicWave(instrument.parameters.wave)
 											note.oscillators[p + "##"].start(now)
 
 											note.oscillators[p + "#"] = AUDIO_J.audio.createOscillator()
 											note.oscillators[p + "#"].connect(note.chorus.gain)
 											note.oscillators[p + "#"].frequency.setValueAtTime(pitch * multiplier, now)
-											note.oscillators[p + "#"].detune.setValueAtTime(instrument.parameters.chorus.variance / 2, now)
+											note.oscillators[p + "#"].detune.setValueAtTime(detuneCents + instrument.parameters.chorus.variance / 2, now)
 											note.oscillators[p + "#"].setPeriodicWave(instrument.parameters.wave)
 											note.oscillators[p + "#"].start(now)
 
 											note.oscillators[p + "b"] = AUDIO_J.audio.createOscillator()
 											note.oscillators[p + "b"].connect(note.chorus.gain)
 											note.oscillators[p + "b"].frequency.setValueAtTime(pitch * multiplier, now)
-											note.oscillators[p + "b"].detune.setValueAtTime(instrument.parameters.chorus.variance / -2, now)
+											note.oscillators[p + "b"].detune.setValueAtTime(detuneCents + instrument.parameters.chorus.variance / -2, now)
 											note.oscillators[p + "b"].setPeriodicWave(instrument.parameters.wave)
 											note.oscillators[p + "b"].start(now)
 
 											note.oscillators[p + "bb"] = AUDIO_J.audio.createOscillator()
 											note.oscillators[p + "bb"].connect(note.chorus.gain)
 											note.oscillators[p + "bb"].frequency.setValueAtTime(pitch * multiplier, now)
-											note.oscillators[p + "bb"].detune.setValueAtTime(instrument.parameters.chorus.variance * -1, now)
+											note.oscillators[p + "bb"].detune.setValueAtTime(detuneCents + instrument.parameters.chorus.variance * -1, now)
 											note.oscillators[p + "bb"].setPeriodicWave(instrument.parameters.wave)
 											note.oscillators[p + "bb"].start(now)
 										}
