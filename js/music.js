@@ -1632,6 +1632,22 @@
 						measureObject.dynamicsInput.value = measureJSON.dynamics
 						measureObject.dynamicsInput.setAttribute("value-present", true)
 					}
+
+				// key // ignored
+					if (measureJSON.key === null) {
+						delete measureState.key
+					}
+					else if (measureJSON.key !== undefined)  {
+						measureState.key = measureJSON.key
+					}
+
+				// repeat // ignored
+					if (measureJSON.repeat === null) {
+						delete measureState.repeat
+					}
+					else if (measureJSON.repeat !== undefined)  {
+						measureState.repeat = measureJSON.repeat
+					}
 				
 				// notes
 					if (measureJSON.notes === null) {
